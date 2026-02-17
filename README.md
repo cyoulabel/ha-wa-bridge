@@ -57,7 +57,7 @@ data:
     - "Sushi"
     - "Burgers"
   allow_multiple_answers: true
-  number: "1234567890" # OR group: "Group Name"
+  number: "40741234567" # OR group: "Group Name"
 ```
 
 ### Sending Media
@@ -67,7 +67,7 @@ You can send images or files using either a URL (`media_url`) or a local path (`
 ```yaml
 service: whatsapp.send_message
 data:
-  number: "1234567890"
+  number: "40741234567"
   message: "Check this out!"
   media_url: "https://www.home-assistant.io/images/favicon.ico"
 ```
