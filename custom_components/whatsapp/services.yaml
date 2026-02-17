@@ -64,3 +64,40 @@ send_broadcast:
       required: true
       selector:
         object:
+
+
+send_poll:
+  name: Send Poll
+  description: Send a poll to a specific number or group.
+  fields:
+    number:
+      name: Number
+      description: The phone number to send the poll to.
+      required: false
+      selector:
+        text:
+    group:
+      name: Group Name
+      description: The exact name of the group to send the poll to.
+      required: false
+      selector:
+        text:
+    message:
+      name: Poll Question
+      description: The question for the poll.
+      required: true
+      selector:
+        text:
+    options:
+      name: Options
+      description: List of options for the poll.
+      required: true
+      selector:
+        object:
+    allow_multiple_answers:
+      name: Allow Multiple Answers
+      description: Whether to allow multiple answers.
+      required: false
+      default: false
+      selector:
+        boolean:

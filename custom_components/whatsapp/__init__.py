@@ -152,6 +152,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.services.async_register(DOMAIN, "send_broadcast", handle_send_broadcast)
 
+    async def handle_send_poll(call: ServiceCall):
+        number = call.data.get("number")
+        group_name = call.data.get("group")
+        message = call.data.get("message")
+        options = call.data.get("options")
+        allow_multiple_answers = call.data.get("allow_multiple_answers", False)
+        
+        # Ensure options is a list
+        if not isinstance(options, list):
+             _LOGGER.error("Options must be a list")
+             return
+
+        await bridge.send_poll(number, group_name, message, options, allow_multiple_answers)
+
+    hass.services.async_register(DOMAIN, "send_poll", handle_send_poll)
+
     return True
 
 

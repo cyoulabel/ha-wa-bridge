@@ -1,4 +1,4 @@
-const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia, Poll } = require('whatsapp-web.js');
 const { WebSocketServer } = require('ws');
 const qrcode = require('qrcode');
 
@@ -63,6 +63,9 @@ wss.on('connection', (ws) => {
             if (data.type === 'send_message') {
                 const { number, message: text, group_name, media } = data;
                 await handleSendMessage(number, text, group_name, media);
+            } else if (data.type === 'send_poll') {
+                const { number, group_name, message: pollQuestion, options, allow_multiple_answers } = data;
+                await handleSendPoll(number, group_name, pollQuestion, options, allow_multiple_answers);
             } else if (data.type === 'broadcast') {
                 const { targets, message: text, media } = data;
                 if (Array.isArray(targets) && targets.length > 0) {
@@ -80,7 +83,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-async function handleSendMessage(number, text, group_name, media) {
+async function resolveChatId(number, group_name) {
     let chatId = number;
 
     if (group_name) {
@@ -103,6 +106,12 @@ async function handleSendMessage(number, text, group_name, media) {
          // Basic format check for number (e.g. 1234567890@c.us)
         chatId = `${chatId}@c.us`;
     }
+    
+    return chatId;
+}
+
+async function handleSendMessage(number, text, group_name, media) {
+    const chatId = await resolveChatId(number, group_name);
 
     if (chatId) {
         try {
@@ -119,6 +128,22 @@ async function handleSendMessage(number, text, group_name, media) {
         }
     } else {
          console.error('No valid destination (number or group_name) provided.');
+    }
+}
+
+async function handleSendPoll(number, group_name, pollQuestion, options, allow_multiple_answers) {
+    const chatId = await resolveChatId(number, group_name);
+
+    if (chatId) {
+        try {
+            const poll = new Poll(pollQuestion, options, { allowMultipleAnswers: allow_multiple_answers });
+            await client.sendMessage(chatId, poll);
+            console.log(`Sent poll to ${chatId}: ${pollQuestion}`);
+        } catch (sendErr) {
+            console.error(`Failed to send poll to ${chatId}:`, sendErr);
+        }
+    } else {
+         console.error('No valid destination (number or group_name) provided for poll.');
     }
 }
 
