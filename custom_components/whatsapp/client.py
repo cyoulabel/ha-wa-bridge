@@ -96,3 +96,28 @@ class WhatsAppBridge:
             payload["media"] = media
         
         await self._ws.send_json(payload)
+
+    async def send_poll(self, number: str | None, group_name: str | None, message: str, options: list[str], allow_multiple_answers: bool):
+        """Send a poll via the bridge."""
+        if not self._ws or self._ws.closed:
+            _LOGGER.warning("Bridge not connected, cannot send poll")
+            return
+
+        payload = {
+            "type": "send_poll",
+            "message": message,
+            "options": options,
+            "allow_multiple_answers": allow_multiple_answers
+        }
+
+        if number:
+            payload["number"] = number
+        
+        if group_name:
+            payload["group_name"] = group_name
+
+        if not number and not group_name:
+             _LOGGER.error("Neither number nor group_name provided for poll")
+             return
+
+        await self._ws.send_json(payload)

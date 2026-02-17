@@ -45,6 +45,21 @@ data:
     - "40741234567"       # Phone number
 ```
 
+### Sending Polls
+You can send polls using the `whatsapp.send_poll` service:
+
+```yaml
+service: whatsapp.send_poll
+data:
+  message: "What should we have for dinner?"
+  options:
+    - "Pizza"
+    - "Sushi"
+    - "Burgers"
+  allow_multiple_answers: true
+  number: "40741234567" # OR group: "Group Name"
+```
+
 ### Sending Media
 You can send images or files using either a URL (`media_url`) or a local path (`media_path`).
 
@@ -52,7 +67,7 @@ You can send images or files using either a URL (`media_url`) or a local path (`
 ```yaml
 service: whatsapp.send_message
 data:
-  number: "1234567890"
+  number: "40741234567"
   message: "Check this out!"
   media_url: "https://www.home-assistant.io/images/favicon.ico"
 ```
