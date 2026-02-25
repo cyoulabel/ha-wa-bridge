@@ -182,6 +182,14 @@ If you are using Docker Compose, you can enable this feature using an environmen
 ## Credits 
 Powered by [whatsapp-web.js](https://wwebjs.dev/).
 
+## Supporters 🙏
+
+Thanks to these legends for their support:
+
+- @louis_remi
+- Pattio
+- Ni3k
+
 ## Buy me a coffee
 - [Buy Me a Coffee](https://buymeacoffee.com/raulpetruta)
 
