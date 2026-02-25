@@ -1,6 +1,18 @@
 const { Client, LocalAuth, MessageMedia, Poll } = require('whatsapp-web.js');
 const { WebSocketServer } = require('ws');
 const qrcode = require('qrcode');
+const fs = require('fs');
+
+let configOptions = {};
+try {
+    if (fs.existsSync('/data/options.json')) {
+        configOptions = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+    }
+} catch (err) {
+    console.error('Error reading options.json:', err);
+}
+
+const detectOwnMessages = configOptions.detect_own_messages || false;
 
 const PORT = 3000;
 
@@ -185,7 +197,12 @@ client.on('auth_failure', msg => {
     broadcast({ type: 'status', status: 'auth_failure' });
 });
 
-client.on('message', async msg => {
+client.on('message_create', async msg => {
+    // If detect_own_messages is false, ignore messages sent by the bot itself
+    if (msg.fromMe && !detectOwnMessages) {
+        return;
+    }
+
     console.log('MESSAGE RECEIVED', msg);
     
     let chatInfo = {};

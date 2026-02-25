@@ -160,6 +160,12 @@ docker-compose up -d
 
 ## Configuration
 
+### Add-on Configuration
+If you are using the Home Assistant Add-on, you can configure the following options in the add-on configuration tab:
+- **`detect_own_messages`**: Set to `true` to allow the bridge to detect and broadcast messages sent by your own authenticated WhatsApp account (e.g., messages sent from WhatsApp Web, your phone, or voice assistants like Ray-Ban Meta glasses). Default is `false`.
+
+### Integration Setup
+
 1.  Go to **Settings > Devices & Services**.
 2.  Click **Add Integration** and search for **WhatsApp**.
 4.  **Click Submit**. The integration will be added immediately.

@@ -11,7 +11,9 @@ startup: application
 boot: auto
 map:
   - config: rw
-options: {}
-schema: {}
+options:
+  detect_own_messages: false
+schema:
+  detect_own_messages: bool
 ports:
   3000/tcp: 3000
