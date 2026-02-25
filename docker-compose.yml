@@ -13,3 +13,4 @@ services:
     environment:
       - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - DETECT_OWN_MESSAGES=true # Set to true to allow the bridge to detect and broadcast messages sent by your own authenticated WhatsApp account

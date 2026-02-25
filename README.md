@@ -162,7 +162,14 @@ docker-compose up -d
 
 ### Add-on Configuration
 If you are using the Home Assistant Add-on, you can configure the following options in the add-on configuration tab:
-- **`detect_own_messages`**: Set to `true` to allow the bridge to detect and broadcast messages sent by your own authenticated WhatsApp account (e.g., messages sent from WhatsApp Web, your phone, or voice assistants like Ray-Ban Meta glasses). Default is `false`.
+- **`detect_own_messages`**: Set to `true` to allow the bridge to detect and broadcast messages sent by your own authenticated WhatsApp account (e.g., messages sent from WhatsApp Web, your phone, or voice assistants like Ray-Ban Meta glasses). **Note: This feature only works for messages sent in WhatsApp groups.** Default is `false`.
+
+### Docker Compose Configuration
+If you are using Docker Compose, you can enable this feature using an environment variable (**Note: This feature only works for messages sent in WhatsApp groups**):
+```yaml
+    environment:
+      - DETECT_OWN_MESSAGES=true
+```
 
 ### Integration Setup
 

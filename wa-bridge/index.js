@@ -12,7 +12,7 @@ try {
     console.error('Error reading options.json:', err);
 }
 
-const detectOwnMessages = configOptions.detect_own_messages || false;
+const detectOwnMessages = configOptions.detect_own_messages || process.env.DETECT_OWN_MESSAGES === 'true' || false;
 
 const PORT = 3000;
 
