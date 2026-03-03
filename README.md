@@ -9,6 +9,7 @@ A custom integration to send and receive WhatsApp messages in Home Assistant nat
 - **Send Messages**: Use the `whatsapp.send_message` service in HA.
 - **Group Messaging**: Send messages to WhatsApp groups by name.
 - **Receive Messages**: Trigger automations when messages arrive.
+- **Receive Filtering**: Disable incoming messages entirely or restrict to specific groups to save resources.
 - **Easy Auth**: Scan a QR code in Home Assistant to link your account.
 
 ## Usage
@@ -138,6 +139,23 @@ services:
     environment:
       - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+      # Forward messages you send yourself (groups only)
+      - DETECT_OWN_MESSAGES=false
+
+      # Incoming message mode: all | disabled | groups_only | numbers_only
+      # - all          → forward everything (default)
+      # - disabled     → send-only mode, no incoming messages processed
+      # - groups_only  → group chats only, ignore 1-to-1 messages
+      # - numbers_only → direct messages from ALLOWED_NUMBERS only
+      - INCOMING_MESSAGES_MODE=all
+
+      # Comma-separated group names — only these groups are forwarded (optional)
+      # - ALLOWED_GROUPS=Family Group,Work Team
+
+      # Comma-separated phone numbers without '+' — only these numbers are forwarded (optional)
+      # Required for numbers_only mode
+      # - ALLOWED_NUMBERS=40741234567,49123456789
 ```
 
 Then run:
@@ -162,13 +180,42 @@ docker-compose up -d
 
 ### Add-on Configuration
 If you are using the Home Assistant Add-on, you can configure the following options in the add-on configuration tab:
-- **`detect_own_messages`**: Set to `true` to allow the bridge to detect and broadcast messages sent by your own authenticated WhatsApp account (e.g., messages sent from WhatsApp Web, your phone, or voice assistants like Ray-Ban Meta glasses). **Note: This feature only works for messages sent in WhatsApp groups.** Default is `false`.
+
+- **`detect_own_messages`**: Set to `true` to forward messages sent by your own account (e.g., from WhatsApp Web or your phone). Works for group messages only. Default: `false`.
+
+- **`incoming_messages_mode`**: Controls which incoming messages are forwarded to Home Assistant. Accepted values:
+  - `all` *(default)* – all messages are forwarded, same as previous behaviour.
+  - `disabled` – the message listener is **never registered**; the container uses minimal resources and is still fully capable of sending messages.
+  - `groups_only` – only messages from group chats are forwarded; 1-to-1 conversations are ignored.
+  - `numbers_only` – only direct messages from phone numbers listed in `allowed_numbers` are forwarded; group messages are ignored.
+
+- **`allowed_groups`**: An optional list of group names. When set, **only** messages from groups whose name exactly matches one of the entries are forwarded. Useful if you only care about a single group. Example:
+  ```yaml
+  allowed_groups:
+    - "Family Group"
+    - "Work Team"
+  ```
+  Leave empty (default) to apply no group-name filter.
+
+- **`allowed_numbers`**: An optional list of phone numbers (international format, no `+`). When set, **only** messages from those numbers are forwarded. Required when using `numbers_only` mode; also works as an extra filter in `all` mode. Example:
+  ```yaml
+  allowed_numbers:
+    - "40741234567"
+    - "49123456789"
+  ```
+  Leave empty (default) to apply no number filter.
 
 ### Docker Compose Configuration
-If you are using Docker Compose, you can enable this feature using an environment variable (**Note: This feature only works for messages sent in WhatsApp groups**):
+All options are also available as environment variables:
 ```yaml
     environment:
       - DETECT_OWN_MESSAGES=true
+      # Options: all | disabled | groups_only | numbers_only
+      - INCOMING_MESSAGES_MODE=disabled
+      # Comma-separated group names (optional)
+      - ALLOWED_GROUPS=Family Group,Work Team
+      # Comma-separated phone numbers without '+' (optional)
+      - ALLOWED_NUMBERS=40741234567,49123456789
 ```
 
 ### Integration Setup

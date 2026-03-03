@@ -14,6 +14,37 @@ try {
 
 const detectOwnMessages = configOptions.detect_own_messages || process.env.DETECT_OWN_MESSAGES === 'true' || false;
 
+// Incoming message filtering
+// Mode: 'all' (default) | 'disabled' | 'groups_only'
+const incomingMode = configOptions.incoming_messages_mode || process.env.INCOMING_MESSAGES_MODE || 'all';
+
+// Optional list of group names to forward (applies to groups_only mode and as a filter in 'all' mode).
+// If empty, no group-name filtering is applied.
+let allowedGroups = configOptions.allowed_groups || process.env.ALLOWED_GROUPS || [];
+if (typeof allowedGroups === 'string') {
+    // Support comma-separated env var: ALLOWED_GROUPS="Group A,Group B"
+    allowedGroups = allowedGroups.split(',').map(g => g.trim()).filter(Boolean);
+}
+const allowedGroupsLower = allowedGroups.map(g => g.toLowerCase());
+
+// Optional list of phone numbers to forward (applies to numbers_only mode and as a filter in 'all' mode).
+// Numbers should be in international format without the '+': e.g. "40741234567"
+// If empty, no number filtering is applied.
+let allowedNumbers = configOptions.allowed_numbers || process.env.ALLOWED_NUMBERS || [];
+if (typeof allowedNumbers === 'string') {
+    // Support comma-separated env var: ALLOWED_NUMBERS="40741234567,49123456789"
+    allowedNumbers = allowedNumbers.split(',').map(n => n.trim()).filter(Boolean);
+}
+const allowedNumbersSet = new Set(allowedNumbers.map(n => `${n}@c.us`));
+
+console.log(`Incoming messages mode: ${incomingMode}`);
+if (allowedGroupsLower.length > 0) {
+    console.log(`Allowed groups filter: ${allowedGroups.join(', ')}`);
+}
+if (allowedNumbersSet.size > 0) {
+    console.log(`Allowed numbers filter: ${allowedNumbers.join(', ')}`);
+}
+
 const PORT = 3000;
 
 // Initialize WebSocket Server
@@ -197,42 +228,72 @@ client.on('auth_failure', msg => {
     broadcast({ type: 'status', status: 'auth_failure' });
 });
 
-client.on('message_create', async msg => {
-    // If detect_own_messages is false, ignore messages sent by the bot itself
-    if (msg.fromMe && !detectOwnMessages) {
-        return;
-    }
-
-    console.log('MESSAGE RECEIVED', msg);
-    
-    let chatInfo = {};
-    try {
-        const chat = await msg.getChat();
-        chatInfo = {
-            chatName: chat.name,
-            isGroup: chat.isGroup
-        };
-    } catch (err) {
-        console.error('Error fetching chat info:', err);
-    }
-
-    // Broadcast incoming message to HA
-    broadcast({
-        type: 'message',
-        data: {
-            from: msg.from,
-            to: msg.to,
-            body: msg.body,
-            timestamp: msg.timestamp,
-            hasMedia: msg.hasMedia,
-            author: msg.author,
-            deviceType: msg.deviceType,
-            isForwarded: msg.isForwarded,
-            fromMe: msg.fromMe,
-            ...chatInfo
+if (incomingMode !== 'disabled') {
+    client.on('message_create', async msg => {
+        // If detect_own_messages is false, ignore messages sent by the bot itself
+        if (msg.fromMe && !detectOwnMessages) {
+            return;
         }
+
+        let chatInfo = {};
+        try {
+            const chat = await msg.getChat();
+            chatInfo = {
+                chatName: chat.name,
+                isGroup: chat.isGroup
+            };
+
+            // groups_only mode: skip non-group messages
+            if (incomingMode === 'groups_only' && !chat.isGroup) {
+                return;
+            }
+
+            // numbers_only mode: skip group messages and messages not from allowed numbers
+            if (incomingMode === 'numbers_only') {
+                if (chat.isGroup || (!allowedNumbersSet.has(msg.from) && !allowedNumbersSet.has(msg.author))) {
+                    return;
+                }
+            }
+
+            // allowed_groups filter: skip messages from groups not in the list
+            if (allowedGroupsLower.length > 0) {
+                if (!chat.isGroup || !allowedGroupsLower.includes(chat.name.toLowerCase())) {
+                    return;
+                }
+            }
+
+            // allowed_numbers filter: skip messages from numbers not in the list
+            if (allowedNumbersSet.size > 0 && incomingMode !== 'numbers_only') {
+                if (chat.isGroup || (!allowedNumbersSet.has(msg.from) && !allowedNumbersSet.has(msg.author))) {
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching chat info:', err);
+        }
+
+        console.log('MESSAGE RECEIVED', msg);
+
+        // Broadcast incoming message to HA
+        broadcast({
+            type: 'message',
+            data: {
+                from: msg.from,
+                to: msg.to,
+                body: msg.body,
+                timestamp: msg.timestamp,
+                hasMedia: msg.hasMedia,
+                author: msg.author,
+                deviceType: msg.deviceType,
+                isForwarded: msg.isForwarded,
+                fromMe: msg.fromMe,
+                ...chatInfo
+            }
+        });
     });
-});
+} else {
+    console.log('Incoming message handling is DISABLED. The bridge will not forward any received messages to Home Assistant.');
+}
 
 // Start the client with retry logic
 const startClient = async () => {

@@ -14,3 +14,6 @@ services:
       - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
       - DETECT_OWN_MESSAGES=true # Set to true to allow the bridge to detect and broadcast messages sent by your own authenticated WhatsApp account
+      - INCOMING_MESSAGES_MODE=all # Set to 'all' to allow all messages, or 'numbers_only' to allow only messages from specific numbers, or 'groups_only' to allow only messages from specific groups
+      # - ALLOWED_NUMBERS=40741234567 # Set to allow only messages from specific numbers
+      # - ALLOWED_GROUPS=Family Group,Work Team # Set to allow only messages from specific groups

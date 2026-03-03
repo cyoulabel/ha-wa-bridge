@@ -1,5 +1,5 @@
 name: "WhatsApp Bridge"
-version: "1.4.0"
+version: "1.5.0"
 slug: "ha_wa_bridge"
 description: "WhatsApp Web Bridge for Home Assistant"
 url: "https://github.com/raulpetruta/ha-wa-bridge"
@@ -13,7 +13,13 @@ map:
   - config: rw
 options:
   detect_own_messages: false
+  incoming_messages_mode: "all"
+  allowed_groups: []
+  allowed_numbers: []
 schema:
   detect_own_messages: bool
+  incoming_messages_mode: "match(all|disabled|groups_only|numbers_only)"
+  allowed_groups: [str]
+  allowed_numbers: [str]
 ports:
   3000/tcp: 3000
