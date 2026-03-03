@@ -3,7 +3,7 @@ configuration:
     name: Detect Own Messages (works in groups only)
     description: >-
       When enabled, messages sent from your own WhatsApp account (e.g. via WhatsApp Web
-      or your phone) are also forwarded to Home Assistant.
+      or your phone) triggers the sound notification.
       Note: this only works inside group chats, not in 1-to-1 conversations.
   incoming_messages_mode:
     name: Incoming Messages Mode
