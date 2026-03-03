@@ -15,9 +15,11 @@ options:
   detect_own_messages: false
   incoming_messages_mode: "all"
   allowed_groups: []
+  allowed_numbers: []
 schema:
   detect_own_messages: bool
-  incoming_messages_mode: str
+  incoming_messages_mode: "match(all|disabled|groups_only|numbers_only)"
   allowed_groups: [str]
+  allowed_numbers: [str]
 ports:
   3000/tcp: 3000

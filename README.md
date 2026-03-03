@@ -170,6 +170,7 @@ If you are using the Home Assistant Add-on, you can configure the following opti
   - `all` *(default)* – all messages are forwarded, same as previous behaviour.
   - `disabled` – the message listener is **never registered**; the container uses minimal resources and is still fully capable of sending messages.
   - `groups_only` – only messages from group chats are forwarded; 1-to-1 conversations are ignored.
+  - `numbers_only` – only direct messages from phone numbers listed in `allowed_numbers` are forwarded; group messages are ignored.
 
 - **`allowed_groups`**: An optional list of group names. When set, **only** messages from groups whose name exactly matches one of the entries are forwarded. Useful if you only care about a single group. Example:
   ```yaml
@@ -179,15 +180,25 @@ If you are using the Home Assistant Add-on, you can configure the following opti
   ```
   Leave empty (default) to apply no group-name filter.
 
+- **`allowed_numbers`**: An optional list of phone numbers (international format, no `+`). When set, **only** messages from those numbers are forwarded. Required when using `numbers_only` mode; also works as an extra filter in `all` mode. Example:
+  ```yaml
+  allowed_numbers:
+    - "40741234567"
+    - "49123456789"
+  ```
+  Leave empty (default) to apply no number filter.
+
 ### Docker Compose Configuration
 All options are also available as environment variables:
 ```yaml
     environment:
       - DETECT_OWN_MESSAGES=true
-      # Options: all | disabled | groups_only
+      # Options: all | disabled | groups_only | numbers_only
       - INCOMING_MESSAGES_MODE=disabled
       # Comma-separated group names (optional)
       - ALLOWED_GROUPS=Family Group,Work Team
+      # Comma-separated phone numbers without '+' (optional)
+      - ALLOWED_NUMBERS=40741234567,49123456789
 ```
 
 ### Integration Setup
