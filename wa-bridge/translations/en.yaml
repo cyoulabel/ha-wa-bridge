@@ -1,0 +1,25 @@
+configuration:
+  detect_own_messages:
+    name: Detect Own Messages (works in groups only)
+    description: >-
+      When enabled, messages sent from your own WhatsApp account (e.g. via WhatsApp Web
+      or your phone) are also forwarded to Home Assistant.
+      Note: this only works inside group chats, not in 1-to-1 conversations.
+  incoming_messages_mode:
+    name: Incoming Messages Mode
+    description: >-
+      Controls which incoming messages are forwarded to Home Assistant.
+      'all' = everything (default); 'disabled' = nothing, send-only mode;
+      'groups_only' = group messages only; 'numbers_only' = direct messages from
+      numbers listed in Allowed Numbers only.
+  allowed_groups:
+    name: Allowed Groups
+    description: >-
+      Optional. When set, only messages from group chats whose name exactly matches
+      one of these entries will be forwarded. Leave empty to apply no group filter.
+  allowed_numbers:
+    name: Allowed Numbers
+    description: >-
+      Optional. Phone numbers in international format without '+' (e.g. 40741234567).
+      When set, only messages from these numbers are forwarded. Required for
+      'numbers_only' mode; also works as an extra filter in 'all' mode.
