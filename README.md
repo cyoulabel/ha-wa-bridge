@@ -139,6 +139,23 @@ services:
     environment:
       - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+      # Forward messages you send yourself (groups only)
+      - DETECT_OWN_MESSAGES=false
+
+      # Incoming message mode: all | disabled | groups_only | numbers_only
+      # - all          → forward everything (default)
+      # - disabled     → send-only mode, no incoming messages processed
+      # - groups_only  → group chats only, ignore 1-to-1 messages
+      # - numbers_only → direct messages from ALLOWED_NUMBERS only
+      - INCOMING_MESSAGES_MODE=all
+
+      # Comma-separated group names — only these groups are forwarded (optional)
+      # - ALLOWED_GROUPS=Family Group,Work Team
+
+      # Comma-separated phone numbers without '+' — only these numbers are forwarded (optional)
+      # Required for numbers_only mode
+      # - ALLOWED_NUMBERS=40741234567,49123456789
 ```
 
 Then run:

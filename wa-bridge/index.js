@@ -20,7 +20,7 @@ const incomingMode = configOptions.incoming_messages_mode || process.env.INCOMIN
 
 // Optional list of group names to forward (applies to groups_only mode and as a filter in 'all' mode).
 // If empty, no group-name filtering is applied.
-let allowedGroups = configOptions.allowed_groups || [];
+let allowedGroups = configOptions.allowed_groups || process.env.ALLOWED_GROUPS || [];
 if (typeof allowedGroups === 'string') {
     // Support comma-separated env var: ALLOWED_GROUPS="Group A,Group B"
     allowedGroups = allowedGroups.split(',').map(g => g.trim()).filter(Boolean);
@@ -30,7 +30,7 @@ const allowedGroupsLower = allowedGroups.map(g => g.toLowerCase());
 // Optional list of phone numbers to forward (applies to numbers_only mode and as a filter in 'all' mode).
 // Numbers should be in international format without the '+': e.g. "40741234567"
 // If empty, no number filtering is applied.
-let allowedNumbers = configOptions.allowed_numbers || [];
+let allowedNumbers = configOptions.allowed_numbers || process.env.ALLOWED_NUMBERS || [];
 if (typeof allowedNumbers === 'string') {
     // Support comma-separated env var: ALLOWED_NUMBERS="40741234567,49123456789"
     allowedNumbers = allowedNumbers.split(',').map(n => n.trim()).filter(Boolean);
