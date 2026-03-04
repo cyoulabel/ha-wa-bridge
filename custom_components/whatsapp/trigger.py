@@ -6,7 +6,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import EVENT_MESSAGE_RECEIVED
 
-TRIGGER_SCHEMA = vol.Schema(
+TRIGGER_SCHEMA = cv.TRIGGER_BASE_SCHEMA.extend(
     {
         vol.Required(CONF_PLATFORM): "whatsapp",
         vol.Optional("from_number"): cv.string,
@@ -56,6 +56,7 @@ async def async_attach_trigger(
             {
                 "trigger": {
                     "platform": "whatsapp",
+                    "id": config.get("id"),
                     "event": data,
                     "from_number": sender,
                     "from_group": chat_name,
