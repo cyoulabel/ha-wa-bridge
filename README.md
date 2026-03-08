@@ -236,6 +236,7 @@ Powered by [whatsapp-web.js](https://wwebjs.dev/).
 
 Thanks to these legends for buying me a [coffee](https://buymeacoffee.com/raulpetruta):
 
+- Jblox6
 - @louis_remi
 - Pattio
 - Ni3k
