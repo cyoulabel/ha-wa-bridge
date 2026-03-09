@@ -232,14 +232,29 @@ client.on('vote_update', vote => {
     console.log('VOTE UPDATE RECEIVED', vote);
 
     let parentMsgId = null;
-    if (vote.parentMessage && vote.parentMessage.id && vote.parentMessage.id._serialized) {
-        parentMsgId = vote.parentMessage.id._serialized;
+    let groupId = null;
+    let voter = vote.voter;
+    
+    // strip the suffix from voter
+    if (voter && voter.includes('@c.us')) {
+        voter = voter.split('@')[0];
+    }
+    
+    if (vote.parentMessage) {
+        if (vote.parentMessage.id && vote.parentMessage.id._serialized) {
+            parentMsgId = vote.parentMessage.id._serialized;
+        }
+        // if this was sent in a group, parentMessage.to will typically be the group ID
+        if (vote.parentMessage.to && vote.parentMessage.to.includes('@g.us')) {
+           groupId = vote.parentMessage.to.split('@')[0];
+        }
     }
 
     broadcast({
         type: 'poll_vote',
         data: {
-            voter: vote.voter,
+            voter: voter,
+            group_id: groupId,
             selectedOptions: vote.selectedOptions,
             pollCreationMessageId: parentMsgId,
             timestamp: vote.timestamp

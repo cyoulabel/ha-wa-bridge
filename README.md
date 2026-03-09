@@ -62,7 +62,12 @@ data:
 ```
 
 ### Automation Trigger for Polls
-Trigger actions when a user votes on a poll using the `whatsapp_poll_vote_received` event:
+Trigger actions when a user votes on a poll using the `whatsapp_poll_vote_received` event.
+
+The event contains:
+- `voter`: The phone number of the voter (e.g. `40741234567`)
+- `selectedOptions`: An array of the options selected
+- `group_id`: The ID of the group if the poll was in a group, otherwise null
 
 ```yaml
 trigger:
@@ -70,7 +75,7 @@ trigger:
     event_type: whatsapp_poll_vote_received
     # Optional: trigger only for a specific voter
     # event_data:
-    #   voter: "40741234567@c.us" 
+    #   voter: "40741234567" 
 action:
   - service: notify.persistent_notification
     data:
