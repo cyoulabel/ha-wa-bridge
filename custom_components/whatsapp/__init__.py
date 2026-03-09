@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.components import persistent_notification
 
-from .const import DOMAIN, CONF_HOST, DEFAULT_HOST, EVENT_MESSAGE_RECEIVED
+from .const import DOMAIN, CONF_HOST, DEFAULT_HOST, EVENT_MESSAGE_RECEIVED, EVENT_POLL_VOTE_RECEIVED
 from .client import WhatsAppBridge
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,6 +43,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Fire HA Event
             payload = msg.get('data', {})
             hass.bus.async_fire(EVENT_MESSAGE_RECEIVED, payload)
+        
+        elif msg['type'] == 'poll_vote':
+            # Fire HA Event for poll vote
+            payload = msg.get('data', {})
+            hass.bus.async_fire(EVENT_POLL_VOTE_RECEIVED, payload)
         
         elif msg['type'] == 'qr':
              # Generate QR Code Image

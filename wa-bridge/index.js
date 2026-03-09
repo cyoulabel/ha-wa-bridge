@@ -228,6 +228,25 @@ client.on('auth_failure', msg => {
     broadcast({ type: 'status', status: 'auth_failure' });
 });
 
+client.on('vote_update', vote => {
+    console.log('VOTE UPDATE RECEIVED', vote);
+
+    let parentMsgId = null;
+    if (vote.parentMessage && vote.parentMessage.id && vote.parentMessage.id._serialized) {
+        parentMsgId = vote.parentMessage.id._serialized;
+    }
+
+    broadcast({
+        type: 'poll_vote',
+        data: {
+            voter: vote.voter,
+            selectedOptions: vote.selectedOptions,
+            pollCreationMessageId: parentMsgId,
+            timestamp: vote.timestamp
+        }
+    });
+});
+
 if (incomingMode !== 'disabled') {
     client.on('message_create', async msg => {
         // If detect_own_messages is false, ignore messages sent by the bot itself

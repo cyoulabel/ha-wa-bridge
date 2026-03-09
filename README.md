@@ -61,6 +61,22 @@ data:
   number: "40741234567" # OR group: "Group Name"
 ```
 
+### Automation Trigger for Polls
+Trigger actions when a user votes on a poll using the `whatsapp_poll_vote_received` event:
+
+```yaml
+trigger:
+  - platform: event
+    event_type: whatsapp_poll_vote_received
+    # Optional: trigger only for a specific voter
+    # event_data:
+    #   voter: "40741234567@c.us" 
+action:
+  - service: notify.persistent_notification
+    data:
+      message: "Received a vote from {{ trigger.event.data.voter }}! Selected options: {{ trigger.event.data.selectedOptions | map(attribute='name') | list | join(', ') }}"
+```
+
 ### Sending Media
 You can send images or files using either a URL (`media_url`) or a local path (`media_path`).
 
