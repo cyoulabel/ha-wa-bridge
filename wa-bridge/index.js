@@ -235,9 +235,12 @@ client.on('vote_update', vote => {
     let groupId = null;
     let voter = vote.voter;
     
-    // strip the suffix from voter
-    if (voter && voter.includes('@c.us')) {
+    // Extract purely the phone number from the JID format (e.g. 1234567890@c.us, 1234567890:12@s.whatsapp.net)
+    if (voter && typeof voter === 'string') {
         voter = voter.split('@')[0];
+        if (voter.includes(':')) {
+            voter = voter.split(':')[0];
+        }
     }
     
     if (vote.parentMessage) {
