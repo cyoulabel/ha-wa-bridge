@@ -12,6 +12,12 @@ configuration:
       'all' = everything (default); 'disabled' = nothing, send-only mode;
       'groups_only' = group messages only; 'numbers_only' = direct messages from
       numbers listed in Allowed Numbers only.
+  incoming_message_log_level:
+    name: Incoming Message Log Level
+    description: >-
+      Controls the amount of detail logged when receiving messages or poll votes.
+      'FULL' = log entire message payload (default); 'COMPACT' = log only sender
+      and message type; 'NONE' = disable logging for incoming messages.
   allowed_groups:
     name: Allowed Groups
     description: >-

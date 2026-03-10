@@ -171,6 +171,12 @@ services:
       # - numbers_only → direct messages from ALLOWED_NUMBERS only
       - INCOMING_MESSAGES_MODE=all
 
+      # Logging level for incoming messages: FULL | COMPACT | NONE
+      # - FULL    → log entire message payload (default)
+      # - COMPACT → log only sender and message type
+      # - NONE    → disable logging for incoming messages
+      - INCOMING_MESSAGE_LOG_LEVEL=FULL
+
       # Comma-separated group names — only these groups are forwarded (optional)
       # - ALLOWED_GROUPS=Family Group,Work Team
 
@@ -210,6 +216,11 @@ If you are using the Home Assistant Add-on, you can configure the following opti
   - `groups_only` – only messages from group chats are forwarded; 1-to-1 conversations are ignored.
   - `numbers_only` – only direct messages from phone numbers listed in `allowed_numbers` are forwarded; group messages are ignored.
 
+- **`incoming_message_log_level`**: Controls the amount of detail logged in the Add-on logs when receiving messages or poll votes. Accepted values:
+  - `FULL` *(default)* – logs the entire raw message payload.
+  - `COMPACT` – logs only basic info like sender identification and message type ("Message received from X"). Message bodies and selected options are omitted.
+  - `NONE` – disables all logging for incoming messages. This is the most private option.
+
 - **`allowed_groups`**: An optional list of group names. When set, **only** messages from groups whose name exactly matches one of the entries are forwarded. Useful if you only care about a single group. Example:
   ```yaml
   allowed_groups:
@@ -233,6 +244,8 @@ All options are also available as environment variables:
       - DETECT_OWN_MESSAGES=true
       # Options: all | disabled | groups_only | numbers_only
       - INCOMING_MESSAGES_MODE=disabled
+      # Options: FULL | COMPACT | NONE
+      - INCOMING_MESSAGE_LOG_LEVEL=FULL
       # Comma-separated group names (optional)
       - ALLOWED_GROUPS=Family Group,Work Team
       # Comma-separated phone numbers without '+' (optional)

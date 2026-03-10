@@ -37,12 +37,31 @@ if (typeof allowedNumbers === 'string') {
 }
 const allowedNumbersSet = new Set(allowedNumbers.map(n => `${n}@c.us`));
 
+// Incoming message logging level
+// Mode: 'FULL' (default) | 'COMPACT' | 'NONE'
+const incomingLogLevel = (configOptions.incoming_message_log_level || process.env.INCOMING_MESSAGE_LOG_LEVEL || 'FULL').toUpperCase();
+
 console.log(`Incoming messages mode: ${incomingMode}`);
+console.log(`Incoming message log level: ${incomingLogLevel}`);
 if (allowedGroupsLower.length > 0) {
     console.log(`Allowed groups filter: ${allowedGroups.join(', ')}`);
 }
 if (allowedNumbersSet.size > 0) {
     console.log(`Allowed numbers filter: ${allowedNumbers.join(', ')}`);
+}
+
+// Helper to log incoming data based on log level
+function logIncomingData(type, data, rawObj) {
+    if (incomingLogLevel === 'NONE') return;
+
+    if (incomingLogLevel === 'COMPACT') {
+        const sender = data.from || data.voter || 'unknown';
+        const group = data.isGroup ? ` (Group: ${data.chatName})` : (data.group_id ? ` (Group ID: ${data.group_id})` : '');
+        console.log(`[${type}] received from ${sender}${group}`);
+    } else {
+        // FULL logging
+        console.log(`[${type}] RECEIVED`, rawObj);
+    }
 }
 
 const PORT = 3000;
@@ -229,7 +248,6 @@ client.on('auth_failure', msg => {
 });
 
 client.on('vote_update', async vote => {
-    console.log('VOTE UPDATE RECEIVED', vote);
 
     let parentMsgId = null;
     let groupId = null;
@@ -294,15 +312,19 @@ client.on('vote_update', async vote => {
         }
     }
 
+    const payloadData = {
+        voter: voter,
+        group_id: groupId,
+        selectedOptions: vote.selectedOptions,
+        pollCreationMessageId: parentMsgId,
+        timestamp: vote.timestamp
+    };
+
+    logIncomingData('VOTE_UPDATE', payloadData, vote);
+
     broadcast({
         type: 'poll_vote',
-        data: {
-            voter: voter,
-            group_id: groupId,
-            selectedOptions: vote.selectedOptions,
-            pollCreationMessageId: parentMsgId,
-            timestamp: vote.timestamp
-        }
+        data: payloadData
     });
 });
 
@@ -350,23 +372,25 @@ if (incomingMode !== 'disabled') {
             console.error('Error fetching chat info:', err);
         }
 
-        console.log('MESSAGE RECEIVED', msg);
+        const payloadData = {
+            from: msg.from,
+            to: msg.to,
+            body: msg.body,
+            timestamp: msg.timestamp,
+            hasMedia: msg.hasMedia,
+            author: msg.author,
+            deviceType: msg.deviceType,
+            isForwarded: msg.isForwarded,
+            fromMe: msg.fromMe,
+            ...chatInfo
+        };
+
+        logIncomingData('MESSAGE', payloadData, msg);
 
         // Broadcast incoming message to HA
         broadcast({
             type: 'message',
-            data: {
-                from: msg.from,
-                to: msg.to,
-                body: msg.body,
-                timestamp: msg.timestamp,
-                hasMedia: msg.hasMedia,
-                author: msg.author,
-                deviceType: msg.deviceType,
-                isForwarded: msg.isForwarded,
-                fromMe: msg.fromMe,
-                ...chatInfo
-            }
+            data: payloadData
         });
     });
 } else {
