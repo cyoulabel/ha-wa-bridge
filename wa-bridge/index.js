@@ -228,14 +228,16 @@ client.on('auth_failure', msg => {
     broadcast({ type: 'status', status: 'auth_failure' });
 });
 
-client.on('vote_update', vote => {
+client.on('vote_update', async vote => {
     console.log('VOTE UPDATE RECEIVED', vote);
 
     let parentMsgId = null;
     let groupId = null;
     let voter = vote.voter;
+    let isGroup = false;
+    let chatName = '';
     
-    // Extract purely the phone number from the JID format (e.g. 1234567890@c.us, 1234567890:12@s.whatsapp.net)
+    // Extract purely the phone number from the JID format
     if (voter && typeof voter === 'string') {
         voter = voter.split('@')[0];
         if (voter.includes(':')) {
@@ -247,9 +249,48 @@ client.on('vote_update', vote => {
         if (vote.parentMessage.id && vote.parentMessage.id._serialized) {
             parentMsgId = vote.parentMessage.id._serialized;
         }
-        // if this was sent in a group, parentMessage.to will typically be the group ID
-        if (vote.parentMessage.to && vote.parentMessage.to.includes('@g.us')) {
-           groupId = vote.parentMessage.to.split('@')[0];
+        
+        let to = vote.parentMessage.to;
+        if (to) {
+            isGroup = to.includes('@g.us');
+            if (isGroup) {
+               groupId = to.split('@')[0];
+            }
+        }
+        
+        // We need the chat name for group filtering
+        try {
+            const chat = await client.getChatById(to || vote.parentMessage.id.remote);
+            chatName = chat.name;
+            isGroup = chat.isGroup;
+        } catch (err) {
+            console.error('Error fetching chat info for poll vote:', err);
+        }
+    }
+    
+    // groups_only mode: skip non-group votes
+    if (incomingMode === 'groups_only' && !isGroup) {
+        return;
+    }
+
+    // numbers_only mode: skip group votes and votes not from allowed numbers
+    if (incomingMode === 'numbers_only') {
+        if (isGroup || !allowedNumbersSet.has(`${voter}@c.us`)) {
+            return;
+        }
+    }
+
+    // allowed_groups filter: skip votes from groups not in the list
+    if (allowedGroupsLower.length > 0) {
+        if (!isGroup || !allowedGroupsLower.includes((chatName || '').toLowerCase())) {
+            return;
+        }
+    }
+
+    // allowed_numbers filter: skip votes from numbers not in the list
+    if (allowedNumbersSet.size > 0 && incomingMode !== 'numbers_only') {
+        if (isGroup || !allowedNumbersSet.has(`${voter}@c.us`)) {
+            return;
         }
     }
 
