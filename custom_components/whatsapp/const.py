@@ -7,3 +7,4 @@ CONF_PORT = "port"
 DEFAULT_HOST = "ws://localhost:3000"
 
 EVENT_MESSAGE_RECEIVED = "whatsapp_message_received"
+EVENT_POLL_VOTE_RECEIVED = "whatsapp_poll_vote_received"
