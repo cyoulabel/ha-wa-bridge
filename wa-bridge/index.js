@@ -123,21 +123,23 @@ wss.on('connection', (ws) => {
             console.log('Received command:', data);
 
             if (data.type === 'send_message') {
-                const { number, message: text, group_name, media } = data;
-                await handleSendMessage(number, text, group_name, media);
+                const { number, message: text, group_name, group_id, media } = data;
+                await handleSendMessage(number, text, group_name, group_id, media);
             } else if (data.type === 'send_poll') {
-                const { number, group_name, message: pollQuestion, options, allow_multiple_answers } = data;
-                await handleSendPoll(number, group_name, pollQuestion, options, allow_multiple_answers);
+                const { number, group_name, group_id, message: pollQuestion, options, allow_multiple_answers } = data;
+                await handleSendPoll(number, group_name, group_id, pollQuestion, options, allow_multiple_answers);
             } else if (data.type === 'broadcast') {
                 const { targets, message: text, media } = data;
                 if (Array.isArray(targets) && targets.length > 0) {
                    console.log(`Broadcasting message to ${targets.length} targets.`);
                    for (const target of targets) {
-                       await handleSendMessage(target, text, target, media);
+                       await handleSendMessage(target, text, target, null, media);
                    }
                 } else {
                     console.error('No targets provided for broadcast.');
                 }
+            } else if (data.type === 'get_groups') {
+                await handleGetGroups(ws);
             }
         } catch (error) {
             console.error('Error processing message:', error);
@@ -145,15 +147,25 @@ wss.on('connection', (ws) => {
     });
 });
 
-async function resolveChatId(number, group_name) {
+async function resolveChatId(number, group_name, group_id) {
     let chatId = number;
+
+    // If a group_id is provided, use it directly (most stable identifier)
+    if (group_id) {
+        chatId = group_id;
+        if (!chatId.includes('@')) {
+            chatId = `${chatId}@g.us`;
+        }
+        console.log(`Using group ID directly: ${chatId}`);
+        return chatId;
+    }
 
     if (group_name) {
         // optimistically try to find a group first if group_name is provided
         try {
             const chats = await client.getChats();
             const group = chats.find(chat => chat.isGroup && chat.name.toLowerCase() === group_name.toLowerCase());
-            
+
             if (group) {
                 chatId = group.id._serialized;
                 console.log(`Found group '${group.name}' with ID: ${chatId}`);
@@ -168,12 +180,12 @@ async function resolveChatId(number, group_name) {
          // Basic format check for number (e.g. 1234567890@c.us)
         chatId = `${chatId}@c.us`;
     }
-    
+
     return chatId;
 }
 
-async function handleSendMessage(number, text, group_name, media) {
-    const chatId = await resolveChatId(number, group_name);
+async function handleSendMessage(number, text, group_name, group_id, media) {
+    const chatId = await resolveChatId(number, group_name, group_id);
 
     if (chatId) {
         try {
@@ -193,8 +205,8 @@ async function handleSendMessage(number, text, group_name, media) {
     }
 }
 
-async function handleSendPoll(number, group_name, pollQuestion, options, allow_multiple_answers) {
-    const chatId = await resolveChatId(number, group_name);
+async function handleSendPoll(number, group_name, group_id, pollQuestion, options, allow_multiple_answers) {
+    const chatId = await resolveChatId(number, group_name, group_id);
 
     if (chatId) {
         try {
@@ -206,6 +218,23 @@ async function handleSendPoll(number, group_name, pollQuestion, options, allow_m
         }
     } else {
          console.error('No valid destination (number or group_name) provided for poll.');
+    }
+}
+
+async function handleGetGroups(ws) {
+    try {
+        const chats = await client.getChats();
+        const groups = chats
+            .filter(chat => chat.isGroup)
+            .map(chat => ({
+                id: chat.id._serialized,
+                name: chat.name
+            }));
+        console.log(`Returning ${groups.length} groups.`);
+        ws.send(JSON.stringify({ type: 'get_groups_response', data: groups }));
+    } catch (err) {
+        console.error('Error fetching groups:', err);
+        ws.send(JSON.stringify({ type: 'get_groups_response', data: [], error: err.message }));
     }
 }
 
@@ -340,7 +369,8 @@ if (incomingMode !== 'disabled') {
             const chat = await msg.getChat();
             chatInfo = {
                 chatName: chat.name,
-                isGroup: chat.isGroup
+                isGroup: chat.isGroup,
+                groupId: chat.isGroup ? chat.id._serialized : null
             };
 
             // groups_only mode: skip non-group messages

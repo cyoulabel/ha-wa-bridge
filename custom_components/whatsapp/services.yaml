@@ -2,17 +2,23 @@
 
 send_message:
   name: Send message
-  description: Send a WhatsApp message to a specific number.
+  description: Send a WhatsApp message to a specific number, group name, or group ID.
   fields:
     number:
       name: Number
-      description: The phone number to send the message to (with country code, e.g., 551199999999). Required if group is not specified.
+      description: The phone number to send the message to (with country code, e.g., 551199999999). Required if group/group_id is not specified.
       required: false
       selector:
         text:
     group:
       name: Group Name
-      description: The exact name of the group to send the message to. Required if number is not specified.
+      description: The exact name of the group to send the message to. Required if number/group_id is not specified.
+      required: false
+      selector:
+        text:
+    group_id:
+      name: Group ID
+      description: The ID of the group to send the message to (e.g., 120363012345678901). More stable than group name. Use the get_groups service to retrieve group IDs.
       required: false
       selector:
         text:
@@ -68,7 +74,7 @@ send_broadcast:
 
 send_poll:
   name: Send Poll
-  description: Send a poll to a specific number or group.
+  description: Send a poll to a specific number, group name, or group ID.
   fields:
     number:
       name: Number
@@ -79,6 +85,12 @@ send_poll:
     group:
       name: Group Name
       description: The exact name of the group to send the poll to.
+      required: false
+      selector:
+        text:
+    group_id:
+      name: Group ID
+      description: The ID of the group to send the poll to (e.g., 120363012345678901). More stable than group name. Use the get_groups service to retrieve group IDs.
       required: false
       selector:
         text:
@@ -101,3 +113,8 @@ send_poll:
       default: false
       selector:
         boolean:
+
+
+get_groups:
+  name: Get Groups
+  description: Retrieve all WhatsApp groups with their IDs and names. Results are fired as a whatsapp_groups_received event.

@@ -11,6 +11,7 @@ TRIGGER_SCHEMA = cv.TRIGGER_BASE_SCHEMA.extend(
         vol.Required(CONF_PLATFORM): "whatsapp",
         vol.Optional("from_number"): cv.string,
         vol.Optional("from_group"): cv.string,
+        vol.Optional("from_group_id"): cv.string,
         vol.Optional("contains_text"): cv.string,
     }
 )
@@ -24,6 +25,7 @@ async def async_attach_trigger(
     """Attach a trigger."""
     from_number = config.get("from_number")
     from_group = config.get("from_group")
+    from_group_id = config.get("from_group_id")
     contains_text = config.get("contains_text")
 
     async def event_listener(event):
@@ -32,6 +34,7 @@ async def async_attach_trigger(
         sender = data.get("from")
         body = data.get("body", "")
         chat_name = data.get("chatName")
+        group_id = data.get("groupId")
         is_group = data.get("isGroup", False)
 
         # Check sender (from_number)
@@ -39,9 +42,15 @@ async def async_attach_trigger(
             if sender != from_number and sender != f"{from_number}@c.us":
                 return
 
-        # Check group (from_group)
+        # Check group by ID (from_group_id) — preferred, stable identifier
+        if from_group_id:
+            if not is_group:
+                return
+            if not group_id or from_group_id not in group_id:
+                return
+
+        # Check group by name (from_group)
         if from_group:
-            # We must expect isGroup to be true and chatName to match
             if not is_group:
                 return
             if not chat_name or chat_name.lower() != from_group.lower():
@@ -60,6 +69,7 @@ async def async_attach_trigger(
                     "event": data,
                     "from_number": sender,
                     "from_group": chat_name,
+                    "from_group_id": group_id,
                     "description": f"WhatsApp message from {chat_name if is_group else sender}",
                 }
             },

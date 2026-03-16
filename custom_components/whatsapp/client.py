@@ -54,12 +54,12 @@ class WhatsAppBridge:
         if self._session:
             await self._session.close()
 
-    async def send_message(self, number: str | None, message: str, group_name: str | None = None, media: dict | None = None):
+    async def send_message(self, number: str | None, message: str, group_name: str | None = None, group_id: str | None = None, media: dict | None = None):
         """Send a message via the bridge."""
         if not self._ws or self._ws.closed:
             _LOGGER.warning("Bridge not connected, cannot send message")
             return
-        
+
         payload = {
             "type": "send_message",
             "message": message
@@ -67,15 +67,18 @@ class WhatsAppBridge:
 
         if number:
             payload["number"] = number
-        
+
         if group_name:
             payload["group_name"] = group_name
+
+        if group_id:
+            payload["group_id"] = group_id
 
         if media:
             payload["media"] = media
 
-        if not number and not group_name:
-             _LOGGER.error("Neither number nor group_name provided")
+        if not number and not group_name and not group_id:
+             _LOGGER.error("Neither number, group_name, nor group_id provided")
              return
 
         await self._ws.send_json(payload)
@@ -97,7 +100,7 @@ class WhatsAppBridge:
         
         await self._ws.send_json(payload)
 
-    async def send_poll(self, number: str | None, group_name: str | None, message: str, options: list[str], allow_multiple_answers: bool):
+    async def send_poll(self, number: str | None, group_name: str | None, message: str, options: list[str], allow_multiple_answers: bool, group_id: str | None = None):
         """Send a poll via the bridge."""
         if not self._ws or self._ws.closed:
             _LOGGER.warning("Bridge not connected, cannot send poll")
@@ -112,12 +115,23 @@ class WhatsAppBridge:
 
         if number:
             payload["number"] = number
-        
+
         if group_name:
             payload["group_name"] = group_name
 
-        if not number and not group_name:
-             _LOGGER.error("Neither number nor group_name provided for poll")
+        if group_id:
+            payload["group_id"] = group_id
+
+        if not number and not group_name and not group_id:
+             _LOGGER.error("Neither number, group_name, nor group_id provided for poll")
              return
 
         await self._ws.send_json(payload)
+
+    async def get_groups(self):
+        """Request the list of groups from the bridge."""
+        if not self._ws or self._ws.closed:
+            _LOGGER.warning("Bridge not connected, cannot get groups")
+            return
+
+        await self._ws.send_json({"type": "get_groups"})

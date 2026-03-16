@@ -7,7 +7,9 @@ A custom integration to send and receive WhatsApp messages in Home Assistant nat
 
 ## Features
 - **Send Messages**: Use the `whatsapp.send_message` service in HA.
-- **Group Messaging**: Send messages to WhatsApp groups by name.
+- **Group Messaging**: Send messages to WhatsApp groups by name or by group ID.
+- **Group ID Support**: Target groups by their stable ID instead of name — automations won't break when a group is renamed.
+- **Get Groups**: Retrieve all WhatsApp groups with their IDs using the `whatsapp.get_groups` service.
 - **Receive Messages**: Trigger automations when messages arrive.
 - **Receive Filtering**: Disable incoming messages entirely or restrict to specific groups to save resources.
 - **Easy Auth**: Scan a QR code in Home Assistant to link your account.
@@ -34,6 +36,39 @@ data:
   message: "Dinner is ready! 🍽️"
 ```
 
+### Sending to a Group by ID
+You can send messages to a group using its stable ID. This is recommended for automations since the ID doesn't change when the group is renamed. Use the `whatsapp.get_groups` service to find group IDs; or check the add on logs while sending / receiving a message for a group to get the ID
+
+```yaml
+service: whatsapp.send_message
+data:
+  group_id: "120363012345678901" # Group ID (use get_groups to find this)
+  message: "Dinner is ready! 🍽️"
+```
+
+### Retrieving Group IDs
+Use the `whatsapp.get_groups` service to retrieve all your WhatsApp groups with their IDs. The results are fired as a `whatsapp_groups_received` event.
+
+```yaml
+service: whatsapp.get_groups
+```
+
+You can listen for the result with an automation:
+
+```yaml
+trigger:
+  - platform: event
+    event_type: whatsapp_groups_received
+action:
+  - service: persistent_notification.create
+    data:
+      title: "WhatsApp Groups"
+      message: >
+        {% for group in trigger.event.data.groups %}
+        - {{ group.name }}: {{ group.id }}
+        {% endfor %}
+```
+
 ## Sending Broadcast Messages
 You can send messages to multiple targets using the service:
 
@@ -58,7 +93,7 @@ data:
     - "Sushi"
     - "Burgers"
   allow_multiple_answers: true
-  number: "40741234567" # OR group: "Group Name"
+  number: "40741234567" # OR group: "Group Name" OR group_id: "120363012345678901"
 ```
 
 ### Automation Trigger for Polls
@@ -125,6 +160,20 @@ To trigger an automation from a group message, use `from_group` with the exact g
 trigger:
   - platform: whatsapp
     from_group: "Family Group"
+    contains_text: "Dinner" # Optional
+action:
+  - service: notify.persistent_notification
+    data:
+      message: "Dinner time!"
+```
+
+### Group Message Trigger by ID
+For more stable automations, use `from_group_id` instead of `from_group`. The group ID remains the same even if the group name changes:
+
+```yaml
+trigger:
+  - platform: whatsapp
+    from_group_id: "120363012345678901"
     contains_text: "Dinner" # Optional
 action:
   - service: notify.persistent_notification
