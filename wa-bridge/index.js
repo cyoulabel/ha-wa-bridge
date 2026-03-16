@@ -369,7 +369,8 @@ if (incomingMode !== 'disabled') {
             const chat = await msg.getChat();
             chatInfo = {
                 chatName: chat.name,
-                isGroup: chat.isGroup
+                isGroup: chat.isGroup,
+                groupId: chat.isGroup ? chat.id._serialized : null
             };
 
             // groups_only mode: skip non-group messages
@@ -411,7 +412,6 @@ if (incomingMode !== 'disabled') {
             deviceType: msg.deviceType,
             isForwarded: msg.isForwarded,
             fromMe: msg.fromMe,
-            groupId: chatInfo.isGroup ? (msg.to || msg.from) : null,
             ...chatInfo
         };
 
