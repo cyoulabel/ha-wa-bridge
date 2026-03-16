@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.components import persistent_notification
 
-from .const import DOMAIN, CONF_HOST, DEFAULT_HOST, EVENT_MESSAGE_RECEIVED, EVENT_POLL_VOTE_RECEIVED
+from .const import DOMAIN, CONF_HOST, DEFAULT_HOST, EVENT_MESSAGE_RECEIVED, EVENT_POLL_VOTE_RECEIVED, EVENT_GROUPS_RECEIVED
 from .client import WhatsAppBridge
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,6 +48,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Fire HA Event for poll vote
             payload = msg.get('data', {})
             hass.bus.async_fire(EVENT_POLL_VOTE_RECEIVED, payload)
+
+        elif msg['type'] == 'get_groups_response':
+            # Fire HA Event with the list of groups
+            groups = msg.get('data', [])
+            hass.bus.async_fire(EVENT_GROUPS_RECEIVED, {"groups": groups})
         
         elif msg['type'] == 'qr':
              # Generate QR Code Image
@@ -130,13 +135,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_send_message(call: ServiceCall):
         number = call.data.get("number")
         group = call.data.get("group")
+        group_id = call.data.get("group_id")
         message = call.data.get("message")
         media_url = call.data.get("media_url")
         media_path = call.data.get("media_path")
-        
+
         media = await get_media_data(hass, media_url, media_path)
-        
-        await bridge.send_message(number, message, group, media)
+
+        await bridge.send_message(number, message, group, group_id, media)
 
     hass.services.async_register(DOMAIN, "send_message", handle_send_message)
 
@@ -160,18 +166,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_send_poll(call: ServiceCall):
         number = call.data.get("number")
         group_name = call.data.get("group")
+        group_id = call.data.get("group_id")
         message = call.data.get("message")
         options = call.data.get("options")
         allow_multiple_answers = call.data.get("allow_multiple_answers", False)
-        
+
         # Ensure options is a list
         if not isinstance(options, list):
              _LOGGER.error("Options must be a list")
              return
 
-        await bridge.send_poll(number, group_name, message, options, allow_multiple_answers)
+        await bridge.send_poll(number, group_name, message, options, allow_multiple_answers, group_id)
 
     hass.services.async_register(DOMAIN, "send_poll", handle_send_poll)
+
+    async def handle_get_groups(call: ServiceCall):
+        await bridge.get_groups()
+
+    hass.services.async_register(DOMAIN, "get_groups", handle_get_groups)
 
     return True
 
