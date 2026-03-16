@@ -312,8 +312,9 @@ All options are also available as environment variables:
 ## Credits 
 Powered by [whatsapp-web.js](https://wwebjs.dev/).
 
-## Buy me a coffee
+## Support the project
 - [Buy Me a Coffee](https://buymeacoffee.com/raulpetruta)
+- [PayPal](https://www.paypal.me/raulpetruta98)
 
 ## Supporters 🙏
 
@@ -323,6 +324,10 @@ Thanks to these legends for buying me a [coffee](https://buymeacoffee.com/raulpe
 - @louis_remi
 - Pattio
 - Ni3k
+
+Thanks to these legends for their [PayPal](https://www.paypal.me/raulpetruta98) support:
+
+- Enrique Alarcon
 
 ## License
 [MIT](LICENSE)
