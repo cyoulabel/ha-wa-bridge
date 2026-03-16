@@ -37,7 +37,7 @@ data:
 ```
 
 ### Sending to a Group by ID
-You can send messages to a group using its stable ID. This is recommended for automations since the ID doesn't change when the group is renamed. Use the `whatsapp.get_groups` service to find group IDs.
+You can send messages to a group using its stable ID. This is recommended for automations since the ID doesn't change when the group is renamed. Use the `whatsapp.get_groups` service to find group IDs; or check the add on logs while sending / receiving a message for a group to get the ID
 
 ```yaml
 service: whatsapp.send_message
