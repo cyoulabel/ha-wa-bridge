@@ -135,3 +135,27 @@ class WhatsAppBridge:
             return
 
         await self._ws.send_json({"type": "get_groups"})
+
+    async def set_group_subject(self, group_id: str, subject: str):
+        """Set a group's subject (name) via the bridge."""
+        if not self._ws or self._ws.closed:
+            _LOGGER.warning("Bridge not connected, cannot set group subject")
+            return
+
+        await self._ws.send_json({
+            "type": "set_group_subject",
+            "group_id": group_id,
+            "subject": subject
+        })
+
+    async def set_group_picture(self, group_id: str, media: dict):
+        """Set a group's picture via the bridge."""
+        if not self._ws or self._ws.closed:
+            _LOGGER.warning("Bridge not connected, cannot set group picture")
+            return
+
+        await self._ws.send_json({
+            "type": "set_group_picture",
+            "group_id": group_id,
+            "media": media
+        })

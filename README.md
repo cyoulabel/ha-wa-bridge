@@ -10,6 +10,8 @@ A custom integration to send and receive WhatsApp messages in Home Assistant nat
 - **Group Messaging**: Send messages to WhatsApp groups by name or by group ID.
 - **Group ID Support**: Target groups by their stable ID instead of name — automations won't break when a group is renamed.
 - **Get Groups**: Retrieve all WhatsApp groups with their IDs using the `whatsapp.get_groups` service.
+- **Set Group Subject**: Dynamically update a group's name using the `whatsapp.set_group_subject` service — perfect for automating group names based on schedules or sensor values.
+- **Set Group Picture**: Update a group's picture using the `whatsapp.set_group_picture` service.
 - **Receive Messages**: Trigger automations when messages arrive.
 - **Receive Filtering**: Disable incoming messages entirely or restrict to specific groups to save resources.
 - **Easy Auth**: Scan a QR code in Home Assistant to link your account.
@@ -67,6 +69,35 @@ action:
         {% for group in trigger.event.data.groups %}
         - {{ group.name }}: {{ group.id }}
         {% endfor %}
+```
+
+### Setting a Group Subject (Name)
+You can dynamically update a group's name using the `whatsapp.set_group_subject` service. This is useful for automating group names based on schedules or template sensors. Requires admin permissions in the group.
+
+```yaml
+service: whatsapp.set_group_subject
+data:
+  group_id: "120363012345678901" # Group ID (use get_groups to find this)
+  subject: "Weekly Meeting - Monday 7PM"
+```
+
+### Setting a Group Picture
+You can update a group's picture using the `whatsapp.set_group_picture` service. Supports both URL and local path. Requires admin permissions in the group.
+
+#### Using a URL
+```yaml
+service: whatsapp.set_group_picture
+data:
+  group_id: "120363012345678901" # Group ID (use get_groups to find this)
+  media_url: "https://example.com/group-photo.jpg"
+```
+
+#### Using a Local File
+```yaml
+service: whatsapp.set_group_picture
+data:
+  group_id: "120363012345678901" # Group ID (use get_groups to find this)
+  media_path: "www/group-photo.jpg"
 ```
 
 ## Sending Broadcast Messages

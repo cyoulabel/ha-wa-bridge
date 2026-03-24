@@ -185,6 +185,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.services.async_register(DOMAIN, "get_groups", handle_get_groups)
 
+    async def handle_set_group_subject(call: ServiceCall):
+        group_id = call.data.get("group_id")
+        subject = call.data.get("subject")
+
+        if not group_id or not subject:
+            _LOGGER.error("group_id and subject are required for set_group_subject")
+            return
+
+        await bridge.set_group_subject(group_id, subject)
+
+    hass.services.async_register(DOMAIN, "set_group_subject", handle_set_group_subject)
+
+    async def handle_set_group_picture(call: ServiceCall):
+        group_id = call.data.get("group_id")
+        media_url = call.data.get("media_url")
+        media_path = call.data.get("media_path")
+
+        if not group_id:
+            _LOGGER.error("group_id is required for set_group_picture")
+            return
+
+        media = await get_media_data(hass, media_url, media_path)
+        if not media:
+            _LOGGER.error("No valid media provided for set_group_picture")
+            return
+
+        await bridge.set_group_picture(group_id, media)
+
+    hass.services.async_register(DOMAIN, "set_group_picture", handle_set_group_picture)
+
     return True
 
 
