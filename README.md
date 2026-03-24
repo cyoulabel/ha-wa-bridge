@@ -97,7 +97,7 @@ data:
 service: whatsapp.set_group_picture
 data:
   group_id: "120363012345678901" # Group ID (use get_groups to find this)
-  media_path: "/config/www/group-photo.jpg"
+  media_path: "www/group-photo.jpg"
 ```
 
 ## Sending Broadcast Messages
