@@ -140,6 +140,12 @@ wss.on('connection', (ws) => {
                 }
             } else if (data.type === 'get_groups') {
                 await handleGetGroups(ws);
+            } else if (data.type === 'set_group_subject') {
+                const { group_id, subject } = data;
+                await handleSetGroupSubject(ws, group_id, subject);
+            } else if (data.type === 'set_group_picture') {
+                const { group_id, media } = data;
+                await handleSetGroupPicture(ws, group_id, media);
             }
         } catch (error) {
             console.error('Error processing message:', error);
@@ -235,6 +241,63 @@ async function handleGetGroups(ws) {
     } catch (err) {
         console.error('Error fetching groups:', err);
         ws.send(JSON.stringify({ type: 'get_groups_response', data: [], error: err.message }));
+    }
+}
+
+async function handleSetGroupSubject(ws, group_id, subject) {
+    if (!group_id || !subject) {
+        console.error('group_id and subject are required for set_group_subject.');
+        ws.send(JSON.stringify({ type: 'set_group_subject_response', success: false, error: 'group_id and subject are required' }));
+        return;
+    }
+
+    let chatId = group_id;
+    if (!chatId.includes('@')) {
+        chatId = `${chatId}@g.us`;
+    }
+
+    try {
+        const chat = await client.getChatById(chatId);
+        if (!chat.isGroup) {
+            console.error(`Chat ${chatId} is not a group.`);
+            ws.send(JSON.stringify({ type: 'set_group_subject_response', success: false, error: 'Chat is not a group' }));
+            return;
+        }
+        const result = await chat.setSubject(subject);
+        console.log(`Set group subject for ${chatId} to "${subject}": ${result}`);
+        ws.send(JSON.stringify({ type: 'set_group_subject_response', success: result }));
+    } catch (err) {
+        console.error(`Failed to set group subject for ${chatId}:`, err);
+        ws.send(JSON.stringify({ type: 'set_group_subject_response', success: false, error: err.message }));
+    }
+}
+
+async function handleSetGroupPicture(ws, group_id, media) {
+    if (!group_id || !media) {
+        console.error('group_id and media are required for set_group_picture.');
+        ws.send(JSON.stringify({ type: 'set_group_picture_response', success: false, error: 'group_id and media are required' }));
+        return;
+    }
+
+    let chatId = group_id;
+    if (!chatId.includes('@')) {
+        chatId = `${chatId}@g.us`;
+    }
+
+    try {
+        const chat = await client.getChatById(chatId);
+        if (!chat.isGroup) {
+            console.error(`Chat ${chatId} is not a group.`);
+            ws.send(JSON.stringify({ type: 'set_group_picture_response', success: false, error: 'Chat is not a group' }));
+            return;
+        }
+        const messageMedia = new MessageMedia(media.mimetype, media.data, media.filename);
+        const result = await chat.setPicture(messageMedia);
+        console.log(`Set group picture for ${chatId}: ${result}`);
+        ws.send(JSON.stringify({ type: 'set_group_picture_response', success: result }));
+    } catch (err) {
+        console.error(`Failed to set group picture for ${chatId}:`, err);
+        ws.send(JSON.stringify({ type: 'set_group_picture_response', success: false, error: err.message }));
     }
 }
 

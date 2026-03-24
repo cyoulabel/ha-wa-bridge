@@ -118,3 +118,45 @@ send_poll:
 get_groups:
   name: Get Groups
   description: Retrieve all WhatsApp groups with their IDs and names. Results are fired as a whatsapp_groups_received event.
+
+
+set_group_subject:
+  name: Set Group Subject
+  description: Update the name (subject) of a WhatsApp group. Requires admin permissions in the group.
+  fields:
+    group_id:
+      name: Group ID
+      description: The ID of the group to update (e.g., 120363012345678901). Use the get_groups service to retrieve group IDs.
+      required: true
+      selector:
+        text:
+    subject:
+      name: Subject
+      description: The new name (subject) for the group.
+      required: true
+      selector:
+        text:
+
+
+set_group_picture:
+  name: Set Group Picture
+  description: Update the picture of a WhatsApp group. Requires admin permissions in the group.
+  fields:
+    group_id:
+      name: Group ID
+      description: The ID of the group to update (e.g., 120363012345678901). Use the get_groups service to retrieve group IDs.
+      required: true
+      selector:
+        text:
+    media_url:
+      name: Media URL
+      description: URL of the image to set as the group picture.
+      required: false
+      selector:
+        text:
+    media_path:
+      name: Media Path
+      description: Local path to the image to set as the group picture.
+      required: false
+      selector:
+        text:
