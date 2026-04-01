@@ -138,8 +138,8 @@ data:
   name: "Weekly Team Meeting"
   description: "Discuss project updates and next steps"
   location: "Conference Room A" # OR meeting link https://teams.microsoft.com/l/meetup-join/
-  start_time: "2025-01-15T14:00:00"
-  end_time: "2025-01-15T15:00:00"
+  start_time: "2026-06-15T14:00:00"
+  end_time: "2026-06-15T15:00:00"
   call_type: "video" # Optional: video, voice, or none
 ```
 
@@ -151,7 +151,7 @@ service: whatsapp.send_event
 data:
   number: "40741234567"
   name: "Dentist Appointment"
-  start_time: "2025-01-20T10:30:00"
+  start_time: "2026-06-20T10:30:00"
 ```
 
 ### Automation Trigger for Polls
