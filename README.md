@@ -13,6 +13,8 @@ A custom integration to send and receive WhatsApp messages in Home Assistant nat
 - **Set Group Subject**: Dynamically update a group's name using the `whatsapp.set_group_subject` service — perfect for automating group names based on schedules or sensor values.
 - **Set Group Picture**: Update a group's picture using the `whatsapp.set_group_picture` service.
 - **Receive Messages**: Trigger automations when messages arrive.
+- **Channel Message Trigger**: Trigger automations from WhatsApp Channel (newsletter) messages.
+- **Send Events**: Send WhatsApp calendar events with name, location, and time using the `whatsapp.send_event` service.
 - **Receive Filtering**: Disable incoming messages entirely or restrict to specific groups to save resources.
 - **Easy Auth**: Scan a QR code in Home Assistant to link your account.
 
@@ -127,6 +129,32 @@ data:
   number: "40741234567" # OR group: "Group Name" OR group_id: "120363012345678901"
 ```
 
+### Sending Events
+You can send WhatsApp calendar events using the `whatsapp.send_event` service. Events include a name, start time, and optional description, location, end time, and call link.
+
+```yaml
+service: whatsapp.send_event
+data:
+  number: "40741234567" # OR group: "Group Name" OR group_id: "120363012345678901"
+  name: "Weekly Team Meeting"
+  description: "Discuss project updates and next steps"
+  location: "Conference Room A"
+  start_time: "2025-01-15T14:00:00"
+  end_time: "2025-01-15T15:00:00"
+  call_type: "video" # Optional: video, voice, or none
+```
+
+#### Minimal Example
+Only `name` and `start_time` are required:
+
+```yaml
+service: whatsapp.send_event
+data:
+  number: "40741234567"
+  name: "Dentist Appointment"
+  start_time: "2025-01-20T10:30:00"
+```
+
 ### Automation Trigger for Polls
 Trigger actions when a user votes on a poll using the `whatsapp_poll_vote_received` event.
 
@@ -210,6 +238,34 @@ action:
   - service: notify.persistent_notification
     data:
       message: "Dinner time!"
+```
+
+### Channel Message Trigger
+To trigger an automation from a WhatsApp Channel (newsletter) message, use `from_channel` with the exact channel name:
+
+```yaml
+trigger:
+  - platform: whatsapp
+    from_channel: "Tech News Channel"
+    contains_text: "breaking" # Optional
+action:
+  - service: notify.persistent_notification
+    data:
+      message: "New channel update received!"
+```
+
+### Channel Message Trigger by ID
+For more stable automations, use `from_channel_id` instead of `from_channel`. The channel ID remains the same even if the channel name changes:
+
+```yaml
+trigger:
+  - platform: whatsapp
+    from_channel_id: "120363012345678901@newsletter"
+    contains_text: "update" # Optional
+action:
+  - service: notify.persistent_notification
+    data:
+      message: "Channel update received!"
 ```
 
 ## Installation

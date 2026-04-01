@@ -180,6 +180,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.services.async_register(DOMAIN, "send_poll", handle_send_poll)
 
+    async def handle_send_event(call: ServiceCall):
+        number = call.data.get("number")
+        group = call.data.get("group")
+        group_id = call.data.get("group_id")
+        name = call.data.get("name")
+        description = call.data.get("description")
+        location = call.data.get("location")
+        start_time = call.data.get("start_time")
+        end_time = call.data.get("end_time")
+        call_type = call.data.get("call_type")
+
+        await bridge.send_event(number, group, group_id, name, description, location, start_time, end_time, call_type)
+
+    hass.services.async_register(DOMAIN, "send_event", handle_send_event)
+
     async def handle_get_groups(call: ServiceCall):
         await bridge.get_groups()
 

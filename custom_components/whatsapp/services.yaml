@@ -115,6 +115,70 @@ send_poll:
         boolean:
 
 
+send_event:
+  name: Send Event
+  description: Send a WhatsApp calendar event to a specific number, group name, or group ID.
+  fields:
+    number:
+      name: Number
+      description: The phone number to send the event to (with country code, e.g., 551199999999). Required if group/group_id is not specified.
+      required: false
+      selector:
+        text:
+    group:
+      name: Group Name
+      description: The exact name of the group to send the event to. Required if number/group_id is not specified.
+      required: false
+      selector:
+        text:
+    group_id:
+      name: Group ID
+      description: The ID of the group to send the event to (e.g., 120363012345678901). More stable than group name. Use the get_groups service to retrieve group IDs.
+      required: false
+      selector:
+        text:
+    name:
+      name: Event Name
+      description: The name/title of the event.
+      required: true
+      selector:
+        text:
+    description:
+      name: Description
+      description: A description for the event (optional).
+      required: false
+      selector:
+        text:
+    location:
+      name: Location
+      description: The location of the event (optional).
+      required: false
+      selector:
+        text:
+    start_time:
+      name: Start Time
+      description: The start time of the event in ISO 8601 format (e.g., 2025-01-15T14:00:00).
+      required: true
+      selector:
+        text:
+    end_time:
+      name: End Time
+      description: The end time of the event in ISO 8601 format (optional).
+      required: false
+      selector:
+        text:
+    call_type:
+      name: Call Type
+      description: Type of WhatsApp call link to include. Valid values are video, voice, or none (optional).
+      required: false
+      selector:
+        select:
+          options:
+            - "video"
+            - "voice"
+            - "none"
+
+
 get_groups:
   name: Get Groups
   description: Retrieve all WhatsApp groups with their IDs and names. Results are fired as a whatsapp_groups_received event.
