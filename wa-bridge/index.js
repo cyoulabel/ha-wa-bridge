@@ -235,11 +235,12 @@ async function handleSendEvent(number, group_name, group_id, eventName, eventDes
 
     if (chatId) {
         try {
-            const options = {};
+            const options = {
+                callType: eventCallType || 'none'
+            };
             if (eventDescription) options.description = eventDescription;
             if (eventLocation) options.location = eventLocation;
             if (eventEndTime) options.endTime = new Date(eventEndTime);
-            if (eventCallType) options.callType = eventCallType;
 
             const event = new ScheduledEvent(eventName, new Date(eventStartTime), options);
             await client.sendMessage(chatId, event);
