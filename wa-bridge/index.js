@@ -455,42 +455,35 @@ if (incomingMode !== 'disabled') {
         let chatInfo = {};
         try {
             const chat = await msg.getChat();
-            const isChannel = chat.id._serialized.includes('@newsletter');
             chatInfo = {
                 chatName: chat.name,
                 isGroup: chat.isGroup,
-                groupId: chat.isGroup ? chat.id._serialized : null,
-                isChannel: isChannel,
-                channelName: isChannel ? chat.name : null,
-                channelId: isChannel ? chat.id._serialized : null
+                groupId: chat.isGroup ? chat.id._serialized : null
             };
 
-            // Channel messages always pass through (filtered by HA triggers)
-            if (!isChannel) {
-                // groups_only mode: skip non-group messages
-                if (incomingMode === 'groups_only' && !chat.isGroup) {
+            // groups_only mode: skip non-group messages
+            if (incomingMode === 'groups_only' && !chat.isGroup) {
+                return;
+            }
+
+            // numbers_only mode: skip group messages and messages not from allowed numbers
+            if (incomingMode === 'numbers_only') {
+                if (chat.isGroup || (!allowedNumbersSet.has(msg.from) && !allowedNumbersSet.has(msg.author))) {
                     return;
                 }
+            }
 
-                // numbers_only mode: skip group messages and messages not from allowed numbers
-                if (incomingMode === 'numbers_only') {
-                    if (chat.isGroup || (!allowedNumbersSet.has(msg.from) && !allowedNumbersSet.has(msg.author))) {
-                        return;
-                    }
+            // allowed_groups filter: skip messages from groups not in the list
+            if (allowedGroupsLower.length > 0) {
+                if (!chat.isGroup || !allowedGroupsLower.includes(chat.name.toLowerCase())) {
+                    return;
                 }
+            }
 
-                // allowed_groups filter: skip messages from groups not in the list
-                if (allowedGroupsLower.length > 0) {
-                    if (!chat.isGroup || !allowedGroupsLower.includes(chat.name.toLowerCase())) {
-                        return;
-                    }
-                }
-
-                // allowed_numbers filter: skip messages from numbers not in the list
-                if (allowedNumbersSet.size > 0 && incomingMode !== 'numbers_only') {
-                    if (chat.isGroup || (!allowedNumbersSet.has(msg.from) && !allowedNumbersSet.has(msg.author))) {
-                        return;
-                    }
+            // allowed_numbers filter: skip messages from numbers not in the list
+            if (allowedNumbersSet.size > 0 && incomingMode !== 'numbers_only') {
+                if (chat.isGroup || (!allowedNumbersSet.has(msg.from) && !allowedNumbersSet.has(msg.author))) {
+                    return;
                 }
             }
         } catch (err) {
