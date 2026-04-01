@@ -128,6 +128,39 @@ class WhatsAppBridge:
 
         await self._ws.send_json(payload)
 
+    async def send_event(self, number: str | None, group_name: str | None, group_id: str | None, name: str, description: str | None = None, location: str | None = None, start_time: str = None, end_time: str | None = None, call_type: str | None = None):
+        """Send an event via the bridge."""
+        if not self._ws or self._ws.closed:
+            _LOGGER.warning("Bridge not connected, cannot send event")
+            return
+
+        payload = {
+            "type": "send_event",
+            "name": name,
+            "start_time": start_time,
+        }
+
+        if number:
+            payload["number"] = number
+        if group_name:
+            payload["group_name"] = group_name
+        if group_id:
+            payload["group_id"] = group_id
+        if description:
+            payload["description"] = description
+        if location:
+            payload["location"] = location
+        if end_time:
+            payload["end_time"] = end_time
+        if call_type:
+            payload["call_type"] = call_type
+
+        if not number and not group_name and not group_id:
+            _LOGGER.error("Neither number, group_name, nor group_id provided for event")
+            return
+
+        await self._ws.send_json(payload)
+
     async def get_groups(self):
         """Request the list of groups from the bridge."""
         if not self._ws or self._ws.closed:

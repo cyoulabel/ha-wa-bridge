@@ -1,4 +1,4 @@
-const { Client, LocalAuth, MessageMedia, Poll } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia, Poll, ScheduledEvent } = require('whatsapp-web.js');
 const { WebSocketServer } = require('ws');
 const qrcode = require('qrcode');
 const fs = require('fs');
@@ -146,6 +146,9 @@ wss.on('connection', (ws) => {
             } else if (data.type === 'set_group_picture') {
                 const { group_id, media } = data;
                 await handleSetGroupPicture(ws, group_id, media);
+            } else if (data.type === 'send_event') {
+                const { number, group_name, group_id, name, description, location, start_time, end_time, call_type } = data;
+                await handleSendEvent(number, group_name, group_id, name, description, location, start_time, end_time, call_type);
             }
         } catch (error) {
             console.error('Error processing message:', error);
@@ -224,6 +227,29 @@ async function handleSendPoll(number, group_name, group_id, pollQuestion, option
         }
     } else {
          console.error('No valid destination (number or group_name) provided for poll.');
+    }
+}
+
+async function handleSendEvent(number, group_name, group_id, eventName, eventDescription, eventLocation, eventStartTime, eventEndTime, eventCallType) {
+    const chatId = await resolveChatId(number, group_name, group_id);
+
+    if (chatId) {
+        try {
+            const options = {
+                callType: eventCallType || 'none'
+            };
+            if (eventDescription) options.description = eventDescription;
+            if (eventLocation) options.location = eventLocation;
+            if (eventEndTime) options.endTime = new Date(eventEndTime);
+
+            const event = new ScheduledEvent(eventName, new Date(eventStartTime), options);
+            await client.sendMessage(chatId, event);
+            console.log(`Sent event to ${chatId}: ${eventName}`);
+        } catch (sendErr) {
+            console.error(`Failed to send event to ${chatId}:`, sendErr);
+        }
+    } else {
+        console.error('No valid destination (number or group_name) provided for event.');
     }
 }
 
