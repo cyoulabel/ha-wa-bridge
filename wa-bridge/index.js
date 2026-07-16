@@ -489,6 +489,13 @@ if (incomingMode !== 'disabled') {
             }
         } catch (err) {
             console.error('Error fetching chat info:', err);
+            // Contactos que usan LID (número oculto) hacen que
+            // msg.getChat() falle — sin este default, isGroup/chatName/
+            // groupId quedan ausentes del payload, y cualquier
+            // automatización de HA que dependa de isGroup==false nunca
+            // se dispara. Un LID nunca es un grupo (los grupos usan
+            // @g.us), así que isGroup:false es un default seguro.
+            chatInfo = { chatName: msg.from, isGroup: false, groupId: null };
         }
 
         const payloadData = {
