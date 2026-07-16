@@ -493,9 +493,16 @@ if (incomingMode !== 'disabled') {
             // msg.getChat() falle — sin este default, isGroup/chatName/
             // groupId quedan ausentes del payload, y cualquier
             // automatización de HA que dependa de isGroup==false nunca
-            // se dispara. Un LID nunca es un grupo (los grupos usan
-            // @g.us), así que isGroup:false es un default seguro.
-            chatInfo = { chatName: msg.from, isGroup: false, groupId: null };
+            // se dispara. No podemos asumir isGroup:false a ciegas: un
+            // mensaje DE GRUPO también puede fallar aquí si el autor
+            // dentro del grupo usa LID. Inferimos isGroup del formato
+            // del JID (los grupos siempre terminan en @g.us).
+            const inferredIsGroup = (msg.from || '').endsWith('@g.us');
+            chatInfo = {
+                chatName: msg.from,
+                isGroup: inferredIsGroup,
+                groupId: inferredIsGroup ? msg.from : null
+            };
         }
 
         const payloadData = {
