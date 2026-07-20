@@ -66,6 +66,25 @@ function logIncomingData(type, data, rawObj) {
 
 const PORT = 3000;
 
+// Caché interno LID -> teléfono real. Se alimenta de varias fuentes
+// (mensajes recibidos, evento contact_changed) para que el bridge
+// mismo pueda resolver LIDs de forma autónoma, sin depender de que
+// HA aprenda el mapeo por separado.
+const lidPhoneCache = new Map();
+
+function cacheLid(lid, phone) {
+    if (!lid || !phone) return;
+    const lidKey = lid.includes('@') ? lid.split('@')[0] : lid;
+    const phoneClean = phone.includes('@') ? phone : `${phone}@c.us`;
+    lidPhoneCache.set(lidKey, phoneClean);
+}
+
+function lookupLid(lid) {
+    if (!lid) return null;
+    const lidKey = lid.includes('@') ? lid.split('@')[0] : lid;
+    return lidPhoneCache.get(lidKey) || null;
+}
+
 // Initialize WebSocket Server
 const wss = new WebSocketServer({ port: PORT });
 
@@ -184,10 +203,36 @@ async function resolveChatId(number, group_name, group_id) {
         }
     }
 
+    // Si nos pasaron directamente un LID conocido, resolver al teléfono
+    // real usando nuestro caché antes de seguir.
+    if (chatId && chatId.includes('@lid')) {
+        const cached = lookupLid(chatId);
+        if (cached) {
+            console.log(`Resolved cached LID ${chatId} -> ${cached}`);
+            chatId = cached;
+        }
+    }
+
     // Check if chatId is a valid JID (contains @)
     if (chatId && !chatId.includes('@')) {
-         // Basic format check for number (e.g. 1234567890@c.us)
-        chatId = `${chatId}@c.us`;
+        // Validar y resolver el número correctamente contra WhatsApp
+        // antes de mandarlo — evita mandar a un ID mal formado, y de
+        // paso confirma que el número sí tiene WhatsApp activo (si no
+        // lo tiene, getNumberId regresa null y avisamos aquí mismo en
+        // vez de fallar silenciosamente más adelante en sendMessage).
+        try {
+            const numberId = await client.getNumberId(chatId);
+            if (numberId && numberId._serialized) {
+                chatId = numberId._serialized;
+            } else {
+                console.error(`Number ${chatId} is not registered on WhatsApp.`);
+                return null;
+            }
+        } catch (err) {
+            console.error(`Error validating number ${chatId} via getNumberId:`, err);
+            // Fallback al formato clásico si getNumberId falla por algún motivo
+            chatId = `${chatId}@c.us`;
+        }
     }
 
     return chatId;
@@ -365,6 +410,22 @@ client.on('auth_failure', msg => {
     broadcast({ type: 'status', status: 'auth_failure' });
 });
 
+// Cuando alguien cambia de número (o adopta un username, que WhatsApp
+// trata internamente como un cambio de ID), actualizamos el caché
+// LID->teléfono de inmediato, sin esperar a que llegue un mensaje suyo.
+client.on('contact_changed', (message, oldId, newId, isContact) => {
+    console.log(`Contact changed: ${oldId} -> ${newId} (isContact: ${isContact})`);
+    if (oldId && oldId.includes('@lid') && newId && !newId.includes('@lid')) {
+        cacheLid(oldId, newId);
+    } else if (newId && newId.includes('@lid') && oldId && !oldId.includes('@lid')) {
+        cacheLid(newId, oldId);
+    }
+    broadcast({
+        type: 'contact_changed',
+        data: { oldId, newId, isContact }
+    });
+});
+
 client.on('vote_update', async vote => {
 
     let parentMsgId = null;
@@ -519,18 +580,39 @@ if (incomingMode !== 'disabled') {
         };
 
         // Si el remitente (o autor, en grupos) usa LID, intentar resolver
-        // su número real via la API oficial de WhatsApp — más confiable
-        // que cualquier mapeo aprendido manualmente, y funciona desde
-        // el primer mensaje sin depender de interacciones previas.
+        // su número real. Primero revisamos nuestro caché interno
+        // (poblado por contact_changed o resoluciones previas); si no
+        // está, usamos la API oficial, y si esa falla, probamos el
+        // campo Contact#number como último respaldo.
         const senderId = msg.author || msg.from;
         if (senderId && senderId.includes('@lid')) {
-            try {
-                const lidResults = await client.getContactLidAndPhone([senderId]);
-                if (lidResults && lidResults[0] && lidResults[0].pn) {
-                    payloadData.resolvedPhone = lidResults[0].pn;
+            let resolved = lookupLid(senderId);
+
+            if (!resolved) {
+                try {
+                    const lidResults = await client.getContactLidAndPhone([senderId]);
+                    if (lidResults && lidResults[0] && lidResults[0].pn) {
+                        resolved = lidResults[0].pn;
+                    }
+                } catch (err) {
+                    console.error('Error resolving LID via getContactLidAndPhone:', err);
                 }
-            } catch (err) {
-                console.error('Error resolving LID to phone:', err);
+            }
+
+            if (!resolved) {
+                try {
+                    const contact = await client.getContactById(senderId);
+                    if (contact && contact.number) {
+                        resolved = `${contact.number}@c.us`;
+                    }
+                } catch (err) {
+                    console.error('Error resolving LID via getContactById fallback:', err);
+                }
+            }
+
+            if (resolved) {
+                payloadData.resolvedPhone = resolved;
+                cacheLid(senderId, resolved);
             }
         }
 
