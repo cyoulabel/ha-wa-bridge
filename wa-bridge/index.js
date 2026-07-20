@@ -608,7 +608,14 @@ if (incomingMode !== 'disabled') {
 
         let chatInfo = {};
         try {
-            const chat = await msg.getChat();
+            // Límite de 8s — igual que con downloadMedia(), este bug de
+            // LID a veces cuelga la llamada en vez de fallar rápido.
+            const chat = await Promise.race([
+                msg.getChat(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('getChat timeout (8s)')), 8000)
+                )
+            ]);
             chatInfo = {
                 chatName: chat.name,
                 isGroup: chat.isGroup,
