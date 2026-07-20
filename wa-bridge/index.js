@@ -616,6 +616,31 @@ if (incomingMode !== 'disabled') {
             }
         }
 
+        // Si el mensaje trae imagen o nota de voz, descargar el contenido
+        // real y adjuntarlo en base64 — así HA puede procesarlo (análisis
+        // de foto con IA, transcripción de audio, etc.) sin depender de
+        // que el script de HA vuelva a pedirle el archivo al bridge.
+        const MAX_MEDIA_SIZE_MB = 15;
+        if (msg.hasMedia && (msg.type === 'image' || msg.type === 'ptt' || msg.type === 'audio')) {
+            try {
+                const media = await msg.downloadMedia();
+                if (media && media.data) {
+                    const sizeMB = (media.data.length * 0.75) / (1024 * 1024); // aprox. base64 -> bytes
+                    if (sizeMB <= MAX_MEDIA_SIZE_MB) {
+                        payloadData.media = {
+                            mimetype: media.mimetype,
+                            data: media.data,
+                            filename: media.filename || null
+                        };
+                    } else {
+                        console.error(`Media too large (${sizeMB.toFixed(1)}MB), skipping download.`);
+                    }
+                }
+            } catch (err) {
+                console.error('Error downloading media:', err);
+            }
+        }
+
         logIncomingData('MESSAGE', payloadData, msg);
 
         // Broadcast incoming message to HA
