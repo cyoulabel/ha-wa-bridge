@@ -46,7 +46,7 @@ const incomingLogLevel = (configOptions.incoming_message_log_level || process.en
 // antes de que HA los procese. Privada por default (fuera de
 // /config/www) para que las fotos de vecinos nunca queden accesibles
 // públicamente por internet.
-const MEDIA_DIR = configOptions.media_dir || process.env.MEDIA_DIR || '/config/whatsapp/media';
+const MEDIA_DIR = configOptions.media_dir || process.env.MEDIA_DIR || '/config/shell_scripts/wa_media';
 console.log(`Media storage directory: ${MEDIA_DIR}`);
 
 console.log(`Incoming messages mode: ${incomingMode}`);
