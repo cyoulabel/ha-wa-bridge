@@ -1,5 +1,5 @@
 name: "WhatsApp Bridge"
-version: "2.3"
+version: "2.3.1"
 slug: "ha_wa_bridge"
 description: "WhatsApp Web Bridge for Home Assistant"
 url: "https://github.com/cyoulabel/ha-wa-bridge"
@@ -17,7 +17,7 @@ options:
   incoming_message_log_level: "FULL"
   allowed_groups: []
   allowed_numbers: []
-  media_dir: "/config/whatsapp/media"
+  media_dir: "/config/shell_scripts/wa_media"
 schema:
   detect_own_messages: bool
   incoming_messages_mode: "match(all|disabled|groups_only|numbers_only)"
