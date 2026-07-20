@@ -17,11 +17,13 @@ options:
   incoming_message_log_level: "FULL"
   allowed_groups: []
   allowed_numbers: []
+  media_dir: "/config/whatsapp/media"
 schema:
   detect_own_messages: bool
   incoming_messages_mode: "match(all|disabled|groups_only|numbers_only)"
   incoming_message_log_level: "match(FULL|COMPACT|NONE)"
   allowed_groups: [str]
   allowed_numbers: [str]
+  media_dir: str
 ports:
   3000/tcp: 3000
