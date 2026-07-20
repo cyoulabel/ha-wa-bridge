@@ -1,5 +1,5 @@
 name: "WhatsApp Bridge"
-version: "2.3.1"
+version: "2.3.2"
 slug: "ha_wa_bridge"
 description: "WhatsApp Web Bridge for Home Assistant"
 url: "https://github.com/cyoulabel/ha-wa-bridge"
@@ -10,7 +10,7 @@ arch:
 startup: application
 boot: auto
 map:
-  - config: rw
+  - config:rw
 options:
   detect_own_messages: false
   incoming_messages_mode: "all"
