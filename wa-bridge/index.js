@@ -518,6 +518,22 @@ if (incomingMode !== 'disabled') {
             ...chatInfo
         };
 
+        // Si el remitente (o autor, en grupos) usa LID, intentar resolver
+        // su número real via la API oficial de WhatsApp — más confiable
+        // que cualquier mapeo aprendido manualmente, y funciona desde
+        // el primer mensaje sin depender de interacciones previas.
+        const senderId = msg.author || msg.from;
+        if (senderId && senderId.includes('@lid')) {
+            try {
+                const lidResults = await client.getContactLidAndPhone([senderId]);
+                if (lidResults && lidResults[0] && lidResults[0].pn) {
+                    payloadData.resolvedPhone = lidResults[0].pn;
+                }
+            } catch (err) {
+                console.error('Error resolving LID to phone:', err);
+            }
+        }
+
         logIncomingData('MESSAGE', payloadData, msg);
 
         // Broadcast incoming message to HA
