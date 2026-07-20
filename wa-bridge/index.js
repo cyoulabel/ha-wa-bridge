@@ -715,7 +715,15 @@ if (incomingMode !== 'disabled') {
         const MAX_MEDIA_SIZE_MB = 15;
         if (msg.hasMedia && (msg.type === 'image' || msg.type === 'ptt' || msg.type === 'audio')) {
             try {
-                const media = await msg.downloadMedia();
+                // Límite de 8s — si downloadMedia() se cuelga (en vez de
+                // fallar rápido con el bug de LID), no queremos esperar
+                // indefinidamente y dejar el mensaje sin procesar.
+                const media = await Promise.race([
+                    msg.downloadMedia(),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('downloadMedia timeout (8s)')), 8000)
+                    )
+                ]);
                 if (media && media.data) {
                     const sizeMB = (media.data.length * 0.75) / (1024 * 1024); // aprox. base64 -> bytes
                     if (sizeMB <= MAX_MEDIA_SIZE_MB) {
