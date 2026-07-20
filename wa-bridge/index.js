@@ -66,6 +66,61 @@ function logIncomingData(type, data, rawObj) {
 
 const PORT = 3000;
 
+// ── Descifrado manual de media de WhatsApp ──────────────────────────
+// Cuando msg.downloadMedia() falla (bug de whatsapp-web.js con
+// remitentes LID), descargamos y desciframos el archivo nosotros
+// mismos usando el algoritmo público de WhatsApp: HKDF-SHA256 sobre
+// mediaKey para derivar iv/cipherKey/macKey, luego AES-256-CBC.
+// No depende de getChat()/downloadMedia() en absoluto — evita el bug.
+const crypto = require('crypto');
+const https = require('https');
+
+const MEDIA_KEYS_INFO = {
+    image: 'WhatsApp Image Keys',
+    video: 'WhatsApp Video Keys',
+    audio: 'WhatsApp Audio Keys',
+    ptt: 'WhatsApp Audio Keys',
+    document: 'WhatsApp Document Keys',
+};
+
+function descargarBytes(url) {
+    return new Promise((resolve, reject) => {
+        https.get(url, (res) => {
+            if (res.statusCode !== 200) {
+                reject(new Error(`HTTP ${res.statusCode} descargando media`));
+                return;
+            }
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+            res.on('error', reject);
+        }).on('error', reject);
+    });
+}
+
+async function descifrarMediaWhatsApp(url, mediaKeyBase64, tipo) {
+    const infoStr = MEDIA_KEYS_INFO[tipo] || MEDIA_KEYS_INFO.document;
+    const mediaKey = Buffer.from(mediaKeyBase64, 'base64');
+
+    // HKDF-SHA256: 112 bytes derivados -> iv(16) + cipherKey(32) + macKey(32) + refKey(32, sin usar)
+    const expandedKey = crypto.hkdfSync(
+        'sha256', mediaKey, Buffer.alloc(0), Buffer.from(infoStr, 'utf-8'), 112
+    );
+    const expanded = Buffer.from(expandedKey);
+    const iv = expanded.subarray(0, 16);
+    const cipherKey = expanded.subarray(16, 48);
+    // macKey (expanded.subarray(48, 80)) se usaría para verificar
+    // integridad — lo omitimos por simplicidad, no es crítico aquí.
+
+    const encrypted = await descargarBytes(url);
+    // Los últimos 10 bytes son el MAC, no forman parte del ciphertext real.
+    const ciphertext = encrypted.subarray(0, encrypted.length - 10);
+
+    const decipher = crypto.createDecipheriv('aes-256-cbc', cipherKey, iv);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted;
+}
+
 // Caché interno LID -> teléfono real. Se alimenta de varias fuentes
 // (mensajes recibidos, evento contact_changed) para que el bridge
 // mismo pueda resolver LIDs de forma autónoma, sin depender de que
@@ -677,21 +732,40 @@ if (incomingMode !== 'disabled') {
                 console.error('Error downloading media:', err);
                 // downloadMedia() falla con el mismo bug de LID que
                 // getChat() — internamente también necesita resolver
-                // la identidad del remitente. Como respaldo, WhatsApp
-                // a veces incluye un thumbnail de baja resolución
-                // directo en msg._data.body (base64), sin necesitar
-                // descarga completa. No sirve para leer un QR (muy
-                // pequeño/borroso), pero es suficiente para que Claude
-                // describa la imagen en términos generales.
-                const rawBody = (msg._data && msg._data.body) || '';
-                if (rawBody && rawBody.length > 100 && /^[A-Za-z0-9+/=]+$/.test(rawBody.slice(0, 50))) {
-                    payloadData.media = {
-                        mimetype: msg.mimetype || 'image/jpeg',
-                        data: rawBody,
-                        filename: null,
-                        isThumbnailFallback: true
-                    };
-                    console.log('Using embedded thumbnail as fallback for failed media download.');
+                // la identidad del remitente. Como plan B, intentamos
+                // descifrar el archivo NOSOTROS MISMOS usando la URL
+                // directa + mediaKey que WhatsApp ya incluye en el
+                // mensaje — esto evita por completo el código interno
+                // roto de whatsapp-web.js, dando la imagen COMPLETA en
+                // buena calidad (no solo el thumbnail borroso).
+                try {
+                    const mediaUrl = msg._data && msg._data.deprecatedMms3Url;
+                    const mediaKey = msg._data && msg._data.mediaKey;
+                    if (mediaUrl && mediaKey) {
+                        const decrypted = await descifrarMediaWhatsApp(mediaUrl, mediaKey, msg.type);
+                        payloadData.media = {
+                            mimetype: msg.mimetype || 'image/jpeg',
+                            data: decrypted.toString('base64'),
+                            filename: null
+                        };
+                        console.log('Media descifrada manualmente con éxito (bypass de downloadMedia).');
+                    } else {
+                        throw new Error('Faltan deprecatedMms3Url o mediaKey para descifrado manual');
+                    }
+                } catch (err2) {
+                    console.error('Descifrado manual también falló:', err2);
+                    // Último recurso: thumbnail de baja resolución
+                    // embebido en el mensaje, si existe.
+                    const rawBody = (msg._data && msg._data.body) || '';
+                    if (rawBody && rawBody.length > 100 && /^[A-Za-z0-9+/=]+$/.test(rawBody.slice(0, 50))) {
+                        payloadData.media = {
+                            mimetype: msg.mimetype || 'image/jpeg',
+                            data: rawBody,
+                            filename: null,
+                            isThumbnailFallback: true
+                        };
+                        console.log('Using embedded thumbnail as last-resort fallback.');
+                    }
                 }
             }
         }
