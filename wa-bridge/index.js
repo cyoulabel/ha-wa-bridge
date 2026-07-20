@@ -675,6 +675,24 @@ if (incomingMode !== 'disabled') {
                 }
             } catch (err) {
                 console.error('Error downloading media:', err);
+                // downloadMedia() falla con el mismo bug de LID que
+                // getChat() — internamente también necesita resolver
+                // la identidad del remitente. Como respaldo, WhatsApp
+                // a veces incluye un thumbnail de baja resolución
+                // directo en msg._data.body (base64), sin necesitar
+                // descarga completa. No sirve para leer un QR (muy
+                // pequeño/borroso), pero es suficiente para que Claude
+                // describa la imagen en términos generales.
+                const rawBody = (msg._data && msg._data.body) || '';
+                if (rawBody && rawBody.length > 100 && /^[A-Za-z0-9+/=]+$/.test(rawBody.slice(0, 50))) {
+                    payloadData.media = {
+                        mimetype: msg.mimetype || 'image/jpeg',
+                        data: rawBody,
+                        filename: null,
+                        isThumbnailFallback: true
+                    };
+                    console.log('Using embedded thumbnail as fallback for failed media download.');
+                }
             }
         }
 
@@ -707,4 +725,3 @@ const startClient = async () => {
 };
 
 startClient();
-
