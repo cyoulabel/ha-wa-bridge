@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.1
+
+### Fixed
+- **Filter out WhatsApp internal system/notification messages**
+  (`notification_template`, `e2e_notification`, `protocol`, etc.) before
+  any processing. These carry an empty body and were being forwarded to
+  Home Assistant as if they were real user messages, triggering
+  confusing automated replies to real neighbors' phone numbers that
+  never actually wrote anything — the messages just happened to share
+  a cached LID with a real contact from an earlier, unrelated
+  interaction.
+- **`contact_changed` no longer caches the bot's own number** as the
+  resolved phone for a LID. WhatsApp's internal sync occasionally fires
+  this event with the bot's own `wid` as `newId`, which would corrupt
+  future LID lookups for unrelated contacts.
+
 ## 2.1.0
 
 ### Fixed
