@@ -2,6 +2,7 @@ const { Client, LocalAuth, MessageMedia, Poll, ScheduledEvent } = require('whats
 const { WebSocketServer } = require('ws');
 const qrcode = require('qrcode');
 const fs = require('fs');
+const path = require('path');
 
 let configOptions = {};
 try {
@@ -40,6 +41,13 @@ const allowedNumbersSet = new Set(allowedNumbers.map(n => `${n}@c.us`));
 // Incoming message logging level
 // Mode: 'FULL' (default) | 'COMPACT' | 'NONE'
 const incomingLogLevel = (configOptions.incoming_message_log_level || process.env.INCOMING_MESSAGE_LOG_LEVEL || 'FULL').toUpperCase();
+
+// Carpeta donde se guardan temporalmente imágenes/audios recibidos
+// antes de que HA los procese. Privada por default (fuera de
+// /config/www) para que las fotos de vecinos nunca queden accesibles
+// públicamente por internet.
+const MEDIA_DIR = configOptions.media_dir || process.env.MEDIA_DIR || '/config/whatsapp/media';
+console.log(`Media storage directory: ${MEDIA_DIR}`);
 
 console.log(`Incoming messages mode: ${incomingMode}`);
 console.log(`Incoming message log level: ${incomingLogLevel}`);
@@ -720,6 +728,16 @@ if (incomingMode !== 'disabled') {
         // de foto con IA, transcripción de audio, etc.) sin depender de
         // que el script de HA vuelva a pedirle el archivo al bridge.
         const MAX_MEDIA_SIZE_MB = 15;
+
+        function guardarMediaEnDisco(base64Data, mimetype) {
+            const ext = (mimetype && mimetype.split('/')[1]) ? mimetype.split('/')[1].split(';')[0] : 'bin';
+            const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+            const filepath = path.join(MEDIA_DIR, filename);
+            fs.mkdirSync(MEDIA_DIR, { recursive: true });
+            fs.writeFileSync(filepath, Buffer.from(base64Data, 'base64'));
+            return filepath;
+        }
+
         if (msg.hasMedia && (msg.type === 'image' || msg.type === 'ptt' || msg.type === 'audio')) {
             try {
                 // Límite de 8s — si downloadMedia() se cuelga (en vez de
@@ -734,11 +752,9 @@ if (incomingMode !== 'disabled') {
                 if (media && media.data) {
                     const sizeMB = (media.data.length * 0.75) / (1024 * 1024); // aprox. base64 -> bytes
                     if (sizeMB <= MAX_MEDIA_SIZE_MB) {
-                        payloadData.media = {
-                            mimetype: media.mimetype,
-                            data: media.data,
-                            filename: media.filename || null
-                        };
+                        const filepath = guardarMediaEnDisco(media.data, media.mimetype);
+                        payloadData.mediaPath = filepath;
+                        payloadData.mediaMimetype = media.mimetype;
                     } else {
                         console.error(`Media too large (${sizeMB.toFixed(1)}MB), skipping download.`);
                     }
@@ -758,11 +774,10 @@ if (incomingMode !== 'disabled') {
                     const mediaKey = msg._data && msg._data.mediaKey;
                     if (mediaUrl && mediaKey) {
                         const decrypted = await descifrarMediaWhatsApp(mediaUrl, mediaKey, msg.type);
-                        payloadData.media = {
-                            mimetype: msg.mimetype || 'image/jpeg',
-                            data: decrypted.toString('base64'),
-                            filename: null
-                        };
+                        const mimetype = msg.mimetype || 'image/jpeg';
+                        const filepath = guardarMediaEnDisco(decrypted.toString('base64'), mimetype);
+                        payloadData.mediaPath = filepath;
+                        payloadData.mediaMimetype = mimetype;
                         console.log('Media descifrada manualmente con éxito (bypass de downloadMedia).');
                     } else {
                         throw new Error('Faltan deprecatedMms3Url o mediaKey para descifrado manual');
@@ -773,12 +788,11 @@ if (incomingMode !== 'disabled') {
                     // embebido en el mensaje, si existe.
                     const rawBody = (msg._data && msg._data.body) || '';
                     if (rawBody && rawBody.length > 100 && /^[A-Za-z0-9+/=]+$/.test(rawBody.slice(0, 50))) {
-                        payloadData.media = {
-                            mimetype: msg.mimetype || 'image/jpeg',
-                            data: rawBody,
-                            filename: null,
-                            isThumbnailFallback: true
-                        };
+                        const mimetype = msg.mimetype || 'image/jpeg';
+                        const filepath = guardarMediaEnDisco(rawBody, mimetype);
+                        payloadData.mediaPath = filepath;
+                        payloadData.mediaMimetype = mimetype;
+                        payloadData.isThumbnailFallback = true;
                         console.log('Using embedded thumbnail as last-resort fallback.');
                     }
                 }
