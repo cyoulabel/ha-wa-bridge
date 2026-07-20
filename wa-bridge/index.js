@@ -415,6 +415,17 @@ client.on('auth_failure', msg => {
 // LID->teléfono de inmediato, sin esperar a que llegue un mensaje suyo.
 client.on('contact_changed', (message, oldId, newId, isContact) => {
     console.log(`Contact changed: ${oldId} -> ${newId} (isContact: ${isContact})`);
+
+    // Evitar cachear el número propio del bot como si fuera el teléfono
+    // real de un contacto — esto puede pasar por sincronización interna
+    // de WhatsApp y corrompería futuras resoluciones de LID.
+    const ownNumber = client.info && client.info.wid ? client.info.wid._serialized : null;
+    if (newId === ownNumber || oldId === ownNumber) {
+        console.log('Skipping contact_changed cache — involves bot\'s own number.');
+        broadcast({ type: 'contact_changed', data: { oldId, newId, isContact } });
+        return;
+    }
+
     if (oldId && oldId.includes('@lid') && newId && !newId.includes('@lid')) {
         cacheLid(oldId, newId);
     } else if (newId && newId.includes('@lid') && oldId && !oldId.includes('@lid')) {
@@ -508,9 +519,35 @@ client.on('vote_update', async vote => {
 });
 
 if (incomingMode !== 'disabled') {
+    // Tipos de mensaje que NO son contenido real de un usuario — son
+    // notificaciones internas del protocolo de WhatsApp (cambios de
+    // cuenta de negocio, protocolo E2E, etc.). Sin este filtro, estos
+    // mensajes con body vacío se reenviaban a HA como si fueran
+    // mensajes reales, causando respuestas automáticas confusas a
+    // números que nunca escribieron nada.
+    const IGNORED_MESSAGE_TYPES = new Set([
+        'notification_template',
+        'e2e_notification',
+        'notification',
+        'gp2',
+        'protocol',
+        'ciphertext',
+        'call_log',
+        'group_notification',
+        'broadcast_notification'
+    ]);
+
     client.on('message_create', async msg => {
         // If detect_own_messages is false, ignore messages sent by the bot itself
         if (msg.fromMe && !detectOwnMessages) {
+            return;
+        }
+
+        // Descartar notificaciones internas de WhatsApp antes de hacer
+        // cualquier trabajo (getChat, resolución de LID, etc.) — no son
+        // mensajes de un usuario real.
+        if (IGNORED_MESSAGE_TYPES.has(msg.type)) {
+            console.log(`Ignoring system message of type '${msg.type}' from ${msg.from}`);
             return;
         }
 
