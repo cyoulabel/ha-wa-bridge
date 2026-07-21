@@ -813,8 +813,21 @@ if (incomingMode !== 'disabled') {
                 // roto de whatsapp-web.js, dando la imagen COMPLETA en
                 // buena calidad (no solo el thumbnail borroso).
                 try {
-                    const mediaUrl = msg._data && msg._data.deprecatedMms3Url;
+                    const deprecatedUrl = msg._data && msg._data.deprecatedMms3Url;
+                    const directPath = msg._data && msg._data.directPath;
                     const mediaKey = msg._data && msg._data.mediaKey;
+
+                    // deprecatedMms3Url a veces viene truncada a solo el
+                    // dominio (ej. "https://a.whatsapp.net", sin ruta).
+                    // Si eso pasa, la reconstruimos con directPath, que
+                    // sí trae la ruta completa del archivo.
+                    let mediaUrl = deprecatedUrl;
+                    const urlPareceIncompleta = !deprecatedUrl || !deprecatedUrl.includes('/v/');
+                    if (urlPareceIncompleta && directPath) {
+                        mediaUrl = `https://mmg.whatsapp.net${directPath}`;
+                        console.log('deprecatedMms3Url incompleta, reconstruida con directPath.');
+                    }
+
                     if (mediaUrl && mediaKey) {
                         const decrypted = await descifrarMediaWhatsApp(mediaUrl, mediaKey, msg.type);
                         const mimetype = msg.mimetype || 'image/jpeg';
@@ -823,7 +836,7 @@ if (incomingMode !== 'disabled') {
                         payloadData.mediaMimetype = mimetype;
                         console.log('Media descifrada manualmente con éxito (bypass de downloadMedia).');
                     } else {
-                        throw new Error('Faltan deprecatedMms3Url o mediaKey para descifrado manual');
+                        throw new Error('Faltan deprecatedMms3Url/directPath o mediaKey para descifrado manual');
                     }
                 } catch (err2) {
                     console.error('Descifrado manual también falló:', err2);
