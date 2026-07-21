@@ -231,6 +231,23 @@ wss.on('connection', (ws) => {
             } else if (data.type === 'send_event') {
                 const { number, group_name, group_id, name, description, location, start_time, end_time, call_type } = data;
                 await handleSendEvent(number, group_name, group_id, name, description, location, start_time, end_time, call_type);
+            } else if (data.type === 'resolve_lids') {
+                // Recibe una lista de teléfonos y pregunta directo a
+                // WhatsApp por el LID asociado a cada uno (si existe),
+                // usando la API oficial — sin depender de que el vecino
+                // mande un mensaje primero.
+                const { phones } = data;
+                try {
+                    const phoneIds = (phones || []).map(p => {
+                        const digits = String(p).replace(/[^0-9]/g, '');
+                        return `${digits}@c.us`;
+                    });
+                    const results = await client.getContactLidAndPhone(phoneIds);
+                    ws.send(JSON.stringify({ type: 'resolve_lids_response', data: results }));
+                } catch (err) {
+                    console.error('Error resolving LIDs:', err);
+                    ws.send(JSON.stringify({ type: 'resolve_lids_response', data: [], error: err.message }));
+                }
             }
         } catch (error) {
             console.error('Error processing message:', error);
