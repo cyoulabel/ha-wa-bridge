@@ -89,6 +89,11 @@ const MEDIA_KEYS_INFO = {
     audio: 'WhatsApp Audio Keys',
     ptt: 'WhatsApp Audio Keys',
     document: 'WhatsApp Document Keys',
+    // Los stickers son técnicamente webp (variante de imagen) y
+    // comparten la misma derivación de claves que las imágenes. Sin
+    // esta entrada, caían por default a 'WhatsApp Document Keys'
+    // (incorrecto), causando "bad decrypt" al descifrar manualmente.
+    sticker: 'WhatsApp Image Keys',
 };
 
 function descargarBytes(url) {
