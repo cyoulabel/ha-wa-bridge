@@ -696,6 +696,7 @@ if (incomingMode !== 'disabled') {
             body: msg.body,
             timestamp: msg.timestamp,
             hasMedia: msg.hasMedia,
+            messageType: msg.type,
             author: msg.author,
             deviceType: msg.deviceType,
             isForwarded: msg.isForwarded,
@@ -740,6 +741,26 @@ if (incomingMode !== 'disabled') {
             }
         }
 
+        // Si el mensaje es una respuesta a otro (reply/quote), incluir
+        // el texto del mensaje original como contexto — así el bot
+        // puede entender a qué se refiere el vecino sin que lo repita.
+        if (msg.hasQuotedMsg) {
+            try {
+                const quoted = await Promise.race([
+                    msg.getQuotedMessage(),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('getQuotedMessage timeout (5s)')), 5000)
+                    )
+                ]);
+                if (quoted) {
+                    payloadData.quotedBody = quoted.body || '';
+                    payloadData.quotedFromMe = quoted.fromMe;
+                }
+            } catch (err) {
+                console.error('Error fetching quoted message:', err);
+            }
+        }
+
         // Si el mensaje trae imagen o nota de voz, descargar el contenido
         // real y adjuntarlo en base64 — así HA puede procesarlo (análisis
         // de foto con IA, transcripción de audio, etc.) sin depender de
@@ -755,7 +776,7 @@ if (incomingMode !== 'disabled') {
             return filepath;
         }
 
-        if (msg.hasMedia && (msg.type === 'image' || msg.type === 'ptt' || msg.type === 'audio')) {
+        if (msg.hasMedia && (msg.type === 'image' || msg.type === 'ptt' || msg.type === 'audio' || msg.type === 'sticker')) {
             try {
                 // Límite de 8s — si downloadMedia() se cuelga (en vez de
                 // fallar rápido con el bug de LID), no queremos esperar
