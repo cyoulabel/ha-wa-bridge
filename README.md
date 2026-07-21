@@ -5,6 +5,8 @@
 
 A custom integration to send and receive WhatsApp messages in Home Assistant naturally. It uses a local [whatsapp-web.js](https://wwebjs.dev/) bridge running in Docker.
 
+> **This fork** adds robustness for WhatsApp's **usernames/LID rollout** (June–July 2026), which causes contacts to appear behind an opaque LID instead of a phone number in many internal library calls (`getChat`, `downloadMedia`, etc.), plus incoming **media handling** (images, voice notes, stickers) with a manual decrypt fallback for when the library's own download path is affected by the LID bug. See [Fork-specific features](#fork-specific-features) below.
+
 ## Features
 - **Send Messages**: Use the `whatsapp.send_message` service in HA.
 - **Group Messaging**: Send messages to WhatsApp groups by name or by group ID.
@@ -13,9 +15,45 @@ A custom integration to send and receive WhatsApp messages in Home Assistant nat
 - **Set Group Subject**: Dynamically update a group's name using the `whatsapp.set_group_subject` service — perfect for automating group names based on schedules or sensor values.
 - **Set Group Picture**: Update a group's picture using the `whatsapp.set_group_picture` service.
 - **Receive Messages**: Trigger automations when messages arrive (including WhatsApp Community channels).
+- **Receive Media**: Incoming images, voice notes, and stickers are downloaded (or decrypted manually as a fallback) and saved to a private local folder, with the path forwarded in the event — no public exposure, no giant payloads in the HA event bus.
+- **Reply/Quote Context**: When a message is a reply to another, the quoted message's text is included in the event so automations can understand the full context.
+- **LID Resolution**: Incoming messages from contacts using WhatsApp usernames (LID) are resolved to their real phone number when possible, exposed as `resolvedPhone` in the event.
 - **Send Events**: Send WhatsApp calendar events with name, location, and time using the `whatsapp.send_event` service.
 - **Receive Filtering**: Disable incoming messages entirely or restrict to specific groups to save resources.
 - **Easy Auth**: Scan a QR code in Home Assistant to link your account.
+
+## Fork-specific features
+
+### LID (username) robustness
+WhatsApp's usernames feature hides a contact's real phone number behind an opaque LID (`xxxxxxxxxxx@lid`) in many places. `whatsapp-web.js` has several open bugs where internal calls (`msg.getChat()`, `msg.downloadMedia()`) throw or hang for LID-based senders. This fork adds:
+- Safe fallbacks when `getChat()` fails, inferring `isGroup`/`groupId` from the JID itself instead of guessing incorrectly.
+- An 8-second timeout around `getChat()` and `downloadMedia()` so a hang never blocks message processing indefinitely.
+- LID → phone resolution cascade: in-memory cache → official `getContactLidAndPhone()` API → `getContactById().number` fallback. Result exposed as `resolvedPhone` on incoming message events.
+- A `contact_changed` listener that keeps the LID cache updated in real time (with a guard against accidentally caching the bot's own number).
+- Filtering of internal WhatsApp system/notification messages (`notification_template`, etc.) that would otherwise be forwarded as if they were real user messages.
+
+### Resolving LIDs proactively
+You don't have to wait for a contact to message you first. Send a `resolve_lids` command directly over the bridge's WebSocket (port 3000) with a list of phone numbers, and get back their LIDs (if they have one) using WhatsApp's own `getContactLidAndPhone()` API:
+
+```json
+{ "type": "resolve_lids", "phones": ["40741234567", "49123456789"] }
+```
+
+Response:
+```json
+{ "type": "resolve_lids_response", "data": [{ "pn": "...", "lid": "..." }] }
+```
+
+### Incoming media (images, voice notes, stickers)
+When a message contains an image, voice note, or sticker, the bridge:
+1. Tries `msg.downloadMedia()` (with an 8s timeout).
+2. If that fails (common with LID senders), decrypts the file manually using the `mediaKey` + `directPath`/`deprecatedMms3Url` WhatsApp already includes in the message — bypassing the library's broken internal path entirely, at full quality.
+3. If both fail, falls back to the low-res thumbnail sometimes embedded in the message.
+
+The resulting file is saved to a **private** local folder (configurable via `media_dir`, default `/config/whatsapp/media`) and the event includes `mediaPath` + `mediaMimetype` (short strings) instead of embedding the full base64 payload — avoiding both Home Assistant's Jinja template size limit and bloating the event bus with large payloads.
+
+### Reply/quote context
+If an incoming message is a reply to a previous one, `quotedBody` (the text of the original message) is included in the event, so your automations/LLM prompts can understand what's being replied to without extra API calls.
 
 ## Usage
 
@@ -39,8 +77,10 @@ data:
   message: "Dinner is ready! 🍽️"
 ```
 
+> **Note:** sending by group *name* requires an internal `getChats()` call to look up the group. If your account has contacts affected by the LID bug, this call can fail entirely. Prefer **Sending to a Group by ID** below whenever possible — it's also faster since it skips the lookup.
+
 ### Sending to a Group by ID
-You can send messages to a group using its stable ID. This is recommended for automations since the ID doesn't change when the group is renamed. Use the `whatsapp.get_groups` service to find group IDs; or check the add on logs while sending / receiving a message for a group to get the ID
+You can send messages to a group using its stable ID. This is recommended for automations since the ID doesn't change when the group is renamed, and it avoids the `getChats()` LID issue entirely. Use the `whatsapp.get_groups` service to find group IDs; or check the add on logs while sending / receiving a message for a group to get the ID
 
 ```yaml
 service: whatsapp.send_message
@@ -211,8 +251,27 @@ action:
       entity_id: light.living_room
 ```
 
+### Receiving Media (images, voice notes, stickers)
+Incoming messages that contain media will include `hasMedia: true`, `messageType` (`image` | `ptt` | `audio` | `sticker`), `mediaPath` (local file path), and `mediaMimetype` in the trigger data. Read the file directly from disk in your automation/script — don't try to pass `mediaPath`'s *contents* through a Jinja template (only the *path* is a small string, the file itself can be large).
+
+```yaml
+trigger:
+  - platform: event
+    event_type: whatsapp_message_received
+condition:
+  - condition: template
+    value_template: "{{ trigger.event.data.hasMedia == true and trigger.event.data.mediaPath is defined }}"
+action:
+  - service: shell_command.process_incoming_media
+    data:
+      ruta_imagen: "{{ trigger.event.data.mediaPath }}"
+      mimetype: "{{ trigger.event.data.mediaMimetype }}"
+```
+
+The bridge doesn't delete files on its own — have your script delete the file itself once it's done reading it, so photos don't accumulate on disk.
+
 ### Group Message Trigger
-To trigger an automation from a group message, use `from_group` with the exact group name:
+Trigger actions when a message is received in a specific group.
 
 ```yaml
 trigger:
@@ -273,9 +332,11 @@ action:
 #### Option A: Home Assistant Add-on (Recommended for HA OS)
 1.  Go to **Settings > Add-ons > Add-on Store**.
 2.  Click the **dots (top-right) > Repositories**.
-3.  Add this repository URL: `https://github.com/raulpetruta/ha-wa-bridge`
+3.  Add this repository URL: `https://github.com/cyoulabel/ha-wa-bridge`
 4.  Reload the store and install **WhatsApp Bridge**.
 5.  Start the Add-on.
+
+> ⚠️ Make sure you're installing from **this fork's repository**, not the upstream one — the upstream version does not include the LID/media fixes described above. If you already have the add-on installed from the upstream repo, remove that repository from **Settings > Add-ons > Add-on Store > ⋮ > Repositories** first, add this fork's URL instead, then reinstall.
 
 #### Option B: Docker (For Container/Core users)
 This project requires a small bridge service. Create a `docker-compose.yaml` file with the following content:
@@ -283,7 +344,7 @@ This project requires a small bridge service. Create a `docker-compose.yaml` fil
 ```yaml
 services:
   ha-wa-bridge:
-    image: ghcr.io/raulpetruta/ha-wa-bridge:latest
+    build: ./wa-bridge
     container_name: ha-wa-bridge
     restart: unless-stopped
     ports:
@@ -291,6 +352,7 @@ services:
     volumes:
       - ${CONFIG_DIR}/ha-wa-bridge/.wa_auth:/usr/src/app/.wwebjs_auth
       - ${CONFIG_DIR}/ha-wa-bridge/.wa_cache:/usr/src/app/.wwebjs_cache
+      - ${CONFIG_DIR}/whatsapp/media:/config/whatsapp/media
     environment:
       - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
@@ -311,6 +373,11 @@ services:
       # - NONE    → disable logging for incoming messages
       - INCOMING_MESSAGE_LOG_LEVEL=FULL
 
+      # Where incoming media (images/voice notes/stickers) is saved.
+      # Keep this OUTSIDE of any publicly-served path (e.g. not under
+      # a web-exposed "www" folder) — media isn't meant to be public.
+      - MEDIA_DIR=/config/whatsapp/media
+
       # Comma-separated group names — only these groups are forwarded (optional)
       # - ALLOWED_GROUPS=Family Group,Work Team
 
@@ -329,7 +396,7 @@ docker-compose up -d
 #### Option A: HACS (Recommended)
 1.  Make sure [HACS](https://hacs.xyz/) is installed.
 2.  Go to HACS > Integrations > Top-right menu > **Custom repositories**.
-3.  Add `https://github.com/raulpetruta/ha-wa-bridge` as an **Integration**.
+3.  Add `https://github.com/cyoulabel/ha-wa-bridge` as an **Integration**.
 4.  Click **Download**.
 5.  Restart Home Assistant.
 
@@ -371,6 +438,8 @@ If you are using the Home Assistant Add-on, you can configure the following opti
   ```
   Leave empty (default) to apply no number filter.
 
+- **`media_dir`**: Local folder where incoming images, voice notes, and stickers are saved before your automations process them. Default: `/config/whatsapp/media`. Keep this outside any publicly web-served path — files here are meant to be read locally by your own scripts, never exposed over the internet. The bridge deletes nothing on its own; have your automation/script delete the file once it's done reading it.
+
 ### Docker Compose Configuration
 All options are also available as environment variables:
 ```yaml
@@ -384,6 +453,8 @@ All options are also available as environment variables:
       - ALLOWED_GROUPS=Family Group,Work Team
       # Comma-separated phone numbers without '+' (optional)
       - ALLOWED_NUMBERS=40741234567,49123456789
+      # Local folder for incoming media (optional)
+      - MEDIA_DIR=/config/whatsapp/media
 ```
 
 ### Integration Setup
@@ -394,24 +465,26 @@ All options are also available as environment variables:
 5.  Check your **Home Assistant Notifications** (bell icon) for the QR code.
 6.  **Scan the QR Code** with your WhatsApp mobile app (Linked Devices).
 
-## Credits 
-Powered by [whatsapp-web.js](https://wwebjs.dev/).
+## Troubleshooting
 
-## Support the project
-- [Buy Me a Coffee](https://buymeacoffee.com/raulpetruta)
-- [PayPal](https://www.paypal.me/raulpetruta98)
+### Messages from some contacts aren't being recognized / automations conditioned on `isGroup` don't fire
+This is almost always the LID (username) issue described above. Make sure you're running the latest version of this fork — check the [Changelog](CHANGELOG.md) for the specific fixes included in each release.
+
+### "Template output exceeded maximum size" error in an automation
+Don't pass `mediaPath`'s file *contents* through a Jinja template — only the *path* (a short string) should go through templating. Read the file directly from disk in your script using the path.
+
+### Sending by group name fails with a `getChats` error
+Switch to `group_id` instead of `group` — see [Sending to a Group by ID](#sending-to-a-group-by-id) above. Sending by name requires enumerating all chats, which can fail if any contact in your chat list is affected by the LID bug.
+
+## Credits 
+Powered by [whatsapp-web.js](https://wwebjs.dev/). This fork builds on the excellent work of [raulpetruta/ha-wa-bridge](https://github.com/raulpetruta/ha-wa-bridge).
 
 ## Supporters 🙏
-
-Thanks to these legends for buying me a [coffee](https://buymeacoffee.com/raulpetruta):
 
 - Jblox6
 - @louis_remi
 - Pattio
 - Ni3k
-
-Thanks to these legends for their [PayPal](https://www.paypal.me/raulpetruta98) support:
-
 - Enrique Alarcon
 
 ## Star History
