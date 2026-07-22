@@ -479,13 +479,5 @@ Switch to `group_id` instead of `group` — see [Sending to a Group by ID](#send
 ## Credits 
 Powered by [whatsapp-web.js](https://wwebjs.dev/). This fork builds on the excellent work of [raulpetruta/ha-wa-bridge](https://github.com/raulpetruta/ha-wa-bridge).
 
-## Supporters 🙏
-
-- Jblox6
-- @louis_remi
-- Pattio
-- Ni3k
-- Enrique Alarcon
-
 ## License
 [MIT](LICENSE)
