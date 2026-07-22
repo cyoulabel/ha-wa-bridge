@@ -706,6 +706,12 @@ if (incomingMode !== 'disabled') {
             deviceType: msg.deviceType,
             isForwarded: msg.isForwarded,
             fromMe: msg.fromMe,
+            // Stickers animados (Lottie/vectoriales) no son imágenes
+            // rasterizadas — ningún API de visión puede procesarlos.
+            // WhatsApp sí manda los emojis asociados al sticker, que
+            // podemos usar directo como respaldo sin necesitar visión.
+            isLottie: (msg._data && msg._data.isLottie) || false,
+            stickerEmojis: (msg._data && msg._data.emojis) || [],
             ...chatInfo
         };
 
@@ -830,12 +836,7 @@ if (incomingMode !== 'disabled') {
 
                     if (mediaUrl && mediaKey) {
                         const decrypted = await descifrarMediaWhatsApp(mediaUrl, mediaKey, msg.type);
-                        // FIX: msg.mimetype casi siempre es undefined en whatsapp-web.js;
-                        // el mimetype real viene en msg._data.mimetype (ej. 'image/webp'
-                        // para stickers). Usar el fallback fijo 'image/jpeg' aquí guardaba
-                        // bytes WEBP con extensión .jpeg, rompiendo el pipeline de visión
-                        // (Kimi/Gemini) río abajo con "no pude procesar la imagen".
-                        const mimetype = (msg._data && msg._data.mimetype) || 'image/jpeg';
+                        const mimetype = (msg._data && msg._data.mimetype) || msg.mimetype || 'image/jpeg';
                         const filepath = guardarMediaEnDisco(decrypted.toString('base64'), mimetype);
                         payloadData.mediaPath = filepath;
                         payloadData.mediaMimetype = mimetype;
@@ -849,8 +850,7 @@ if (incomingMode !== 'disabled') {
                     // embebido en el mensaje, si existe.
                     const rawBody = (msg._data && msg._data.body) || '';
                     if (rawBody && rawBody.length > 100 && /^[A-Za-z0-9+/=]+$/.test(rawBody.slice(0, 50))) {
-                        // FIX: mismo problema que arriba, usar msg._data.mimetype real.
-                        const mimetype = (msg._data && msg._data.mimetype) || 'image/jpeg';
+                        const mimetype = (msg._data && msg._data.mimetype) || msg.mimetype || 'image/jpeg';
                         const filepath = guardarMediaEnDisco(rawBody, mimetype);
                         payloadData.mediaPath = filepath;
                         payloadData.mediaMimetype = mimetype;
