@@ -712,6 +712,13 @@ if (incomingMode !== 'disabled') {
             // podemos usar directo como respaldo sin necesitar visión.
             isLottie: (msg._data && msg._data.isLottie) || false,
             stickerEmojis: (msg._data && msg._data.emojis) || [],
+            // Ubicación (fija o en tiempo real) — msg.location ya viene
+            // parseado por whatsapp-web.js con lat/lng limpios. El flag
+            // isLive solo aparece en _data cuando es ubicación en vivo,
+            // ausente por completo en una ubicación fija (pin).
+            locationLat: msg.location ? msg.location.latitude : undefined,
+            locationLng: msg.location ? msg.location.longitude : undefined,
+            isLiveLocation: (msg._data && msg._data.isLive) || false,
             ...chatInfo
         };
 
