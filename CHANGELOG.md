@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4.5
+
+### Fixed
+- **Envío de imágenes/videos/documentos fallaba** con `Data passed to getter
+  must include an id property (it's how we memoize) but got undefined`.
+  Bug de whatsapp-web.js 1.34.7 tras un cambio de WhatsApp Web: al armar el
+  mensaje, `...mediaOptions` copia la propiedad interna `__x_id`, que pisa el
+  id del mensaje. `patch-fix.js` ahora agrega `delete message.__x_id;` en
+  `src/util/Injected/Utils.js` durante el build (fix propuesto upstream en
+  wwebjs/whatsapp-web.js #201922). Los mensajes de solo texto no cambian.
+
 ## 2.1.1
 
 ### Fixed
