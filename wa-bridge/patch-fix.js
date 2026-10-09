@@ -77,9 +77,79 @@ function hotfixMediaMsgId() {
     console.log('[hotfix 2] Applied successfully!');
 }
 
+// ─── Hotfix 3: WhatsApp Web 2.3000.x renombró id._serialized → id.$1 ──
+// Síntoma: getChats()/getChatById()/getChat() truenan con "r: r" y los
+// mensajes de vecinos (@c.us) no llegan. Causa: lastReceivedKey._serialized
+// queda undefined y Msg.getMessagesById([undefined]) falla; un solo chat
+// malo tumba todo getChats(). Fix: (a) leer la llave con fallback a $1,
+// (b) envolver el cálculo de lastMessage en try/catch, (c) getChats ignora
+// los chats que fallen en lugar de rechazar todo.
+// (wwebjs/whatsapp-web.js #201845, #201862; raulpetruta/ha-wa-bridge #48)
+function hotfixSerializedKey() {
+    const filePath = path.join(WWEBJS_DIR, 'util', 'Injected', 'Utils.js');
+    console.log(`[hotfix 3] Checking ${filePath}...`);
+    if (!fs.existsSync(filePath)) {
+        console.error('[hotfix 3] Utils.js not found!');
+        process.exit(1);
+    }
+    let c = fs.readFileSync(filePath, 'utf8');
+    if (c.includes('hotfix3-applied')) {
+        console.log('[hotfix 3] Already applied. Skipping.');
+        return;
+    }
+
+    // (a)+(b) lastMessage
+    const iA = c.indexOf('model.lastMessage = null;');
+    const iB = c.indexOf('delete model.msgs;', iA);
+    if (iA < 0 || iB < 0) {
+        console.error('[hotfix 3] lastMessage block not found — library changed.');
+        process.exit(1);
+    }
+    const bloque = `model.lastMessage = null; // hotfix3-applied
+        try {
+            if (model.msgs && model.msgs.length && chat.lastReceivedKey) {
+                const k = chat.lastReceivedKey;
+                const kid = k._serialized || k.$1 || (typeof k.toString === 'function' ? String(k) : null);
+                if (kid && kid !== '[object Object]') {
+                    const lastMessage =
+                        window.require('WAWebCollections').Msg.get(kid) ||
+                        (await window.require('WAWebCollections').Msg.getMessagesById([kid]))?.messages?.[0];
+                    lastMessage && (model.lastMessage = window.WWebJS.getMessageModel(lastMessage));
+                }
+            }
+        } catch (e) {
+            model.lastMessage = null;
+        }
+
+        `;
+    c = c.slice(0, iA) + bloque + c.slice(iB);
+
+    // (c) getChats tolerante
+    const viejo = `const chatPromises = chats.map((chat) =>
+            window.WWebJS.getChatModel(chat),
+        );
+        return await Promise.all(chatPromises);`;
+    const nuevo = `const chatPromises = chats.map((chat) =>
+            window.WWebJS.getChatModel(chat).catch(() => null),
+        );
+        return (await Promise.all(chatPromises)).filter(Boolean);`;
+    if (!c.includes(viejo)) {
+        console.error('[hotfix 3] getChats block not found — library changed.');
+        process.exit(1);
+    }
+    c = c.replace(viejo, nuevo);
+    fs.writeFileSync(filePath, c, 'utf8');
+    if (!fs.readFileSync(filePath, 'utf8').includes('hotfix3-applied')) {
+        console.error('[hotfix 3] Write verification failed.');
+        process.exit(1);
+    }
+    console.log('[hotfix 3] Applied successfully!');
+}
+
 try {
     hotfixClientResponseText();
     hotfixMediaMsgId();
+    hotfixSerializedKey();
 } catch (err) {
     console.error('Error applying hotfix:', err);
     process.exit(1);
